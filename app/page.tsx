@@ -1,13 +1,17 @@
+
 import PuzzleService from "@/app/lib/puzzle-service";
-import PuzzleDisplay from "@/app/components/PuzzleDisplay";
+import Game from "@/app/components/Game";
 
 export default async function Page() {
   const puzzleService = PuzzleService.getInstance();
   const puzzle = await puzzleService.getRandomPuzzle();
 
   if (!puzzle) {
-    return <div>Failed to load puzzle.</div>;
+    return <div>Failed to load puzzle. Please try refreshing the page.</div>;
   }
 
-  return <PuzzleDisplay puzzle={puzzle} />;
+  return <Game initialPuzzle={puzzle} />;
 }
+
+// Force dynamic rendering to ensure a new puzzle is fetched on each visit
+export const dynamic = "force-dynamic";

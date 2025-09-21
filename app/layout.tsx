@@ -1,26 +1,30 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
-import ReactScanMonitor from './components/ReactScanMonitor'
 
-const inter = Inter({ subsets: ['latin'] })
+import type { Metadata } from "next";
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import theme from "../theme";
+import Header from "./components/Header";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: 'Eval Guesser',
-  description: 'Guess the chess position evaluation',
-}
+  title: "Eval Guesser",
+  description: "Guess the chess position evaluation",
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <ReactScanMonitor />
-        {children}
-      </body>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <body>
+          <Header />
+          <main>{children}</main>
+        </body>
+      </ThemeProvider>
     </html>
-  )
+  );
 }
