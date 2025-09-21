@@ -5,10 +5,11 @@ const puzzleService = PuzzleService.getInstance();
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const puzzle = await puzzleService.getPuzzleById(params.id);
+    const { id } = await params;
+    const puzzle = await puzzleService.getPuzzleById(id);
     
     if (!puzzle) {
       return NextResponse.json(

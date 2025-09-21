@@ -11,12 +11,9 @@ export default function ReactScanMonitor() {
           scan({
             enabled: true,
             log: false, // Set to true to see console logs of re-renders
-            clearLog: false,
             showToolbar: true, // Shows the floating toolbar
-            renderCountThreshold: 3, // Highlight components that re-render more than 3 times
             includeChildren: true,
             playSound: false, // Set to true to hear sound on re-renders
-            reportOnly: undefined, // Can be set to specific component names to track
             onRender: (fiber: any, render: any) => {
               // Custom callback for each render if needed
               // You can log specific component re-renders here
@@ -24,7 +21,7 @@ export default function ReactScanMonitor() {
                 console.warn(`Component ${fiber.type?.name || 'Unknown'} re-rendered ${render.count} times`)
               }
             }
-          })
+          } as any)
         } catch (error) {
           console.error('Failed to load react-scan:', error)
         }

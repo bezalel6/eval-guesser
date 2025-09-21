@@ -3,8 +3,19 @@
 @import 'chessground/assets/chessground.brown.css';
 @import 'chessground/assets/chessground.cburnett.css';
 
+:root {
+  --bg-primary: #161512;
+  --bg-secondary: #2e2a24;
+  --bg-board: #302e2b;
+  --text-primary: #bababa;
+  --text-secondary: #999999;
+  --accent: #81b64c;
+  --border-color: #404040;
+}
+
 body {
-  background-color: #f0f0f0;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -22,10 +33,23 @@ body {
   padding: 20px;
 }
 
+.game-board-wrapper {
+  background: var(--bg-board);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-color);
+}
+
 .board-container {
   width: 60vh;
   max-width: 600px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+}
+
+.eval-bar-container {
+  width: 100%;
+  padding: 0;
 }
 
 .controls-container {
@@ -34,4 +58,96 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-top: 20px;
+}
+
+/* Custom range slider styles */
+.eval-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(to right, 
+    #000000 0%,     /* Black is completely winning */
+    #1a1a1a 15%,
+    #333333 30%,    /* Black is much better */
+    #4d4d4d 45%,    /* Black is slightly better */
+    #666666 49%,    /* Nearly equal */
+    #808080 50%,    /* Dead equal - neutral gray */
+    #999999 51%,    /* Nearly equal */
+    #b3b3b3 55%,    /* White is slightly better */
+    #cccccc 70%,    /* White is much better */
+    #e6e6e6 85%,
+    #ffffff 100%);  /* White is completely winning */
+  outline: none;
+  transition: all 0.2s;
+  cursor: pointer;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+  border: 1px solid var(--border-color);
+}
+
+.eval-slider:hover {
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.3);
+}
+
+.eval-slider:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+.eval-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-primary);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  transition: all 0.2s;
+}
+
+.eval-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  background: #9bc767;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.7);
+}
+
+.eval-slider::-webkit-slider-thumb:active {
+  transform: scale(1.05);
+  background: #6fa23e;
+}
+
+/* Firefox */
+.eval-slider::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-primary);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  transition: all 0.2s;
+}
+
+.eval-slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  background: #9bc767;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.7);
+}
+
+.eval-slider::-moz-range-thumb:active {
+  transform: scale(1.05);
+  background: #6fa23e;
+}
+
+.eval-slider:disabled::-webkit-slider-thumb,
+.eval-slider:disabled::-moz-range-thumb {
+  background: #999;
+  cursor: not-allowed;
+  transform: none;
 }

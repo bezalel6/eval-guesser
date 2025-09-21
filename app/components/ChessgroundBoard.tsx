@@ -1,29 +1,29 @@
-'use client'
+"use client";
 
-import { useEffect, useRef, useCallback } from 'react'
-import { Chessground } from 'chessground'
-import { Api } from 'chessground/api'
-import { Config } from 'chessground/config'
-import { Key } from 'chessground/types'
-import 'chessground/assets/chessground.base.css'
-import 'chessground/assets/chessground.brown.css'
-import 'chessground/assets/chessground.cburnett.css'
+import { useEffect, useRef, useCallback } from "react";
+import { Chessground } from "chessground";
+import { Api } from "chessground/api";
+import { Config } from "chessground/config";
+import type { Key } from "chessground/types";
+import "chessground/assets/chessground.base.css";
+import "chessground/assets/chessground.brown.css";
+import "chessground/assets/chessground.cburnett.css";
 
 interface ChessgroundBoardProps {
-  fen: string
-  onMove?: (from: Key, to: Key) => void
-  allowDragging?: boolean
-  viewOnly?: boolean
-  orientation?: 'white' | 'black'
+  fen: string;
+  onMove?: (from: Key, to: Key) => void;
+  allowDragging?: boolean;
+  viewOnly?: boolean;
+  orientation?: "white" | "black";
   premovable?: {
-    enabled: boolean
-    showDests?: boolean
-  }
+    enabled: boolean;
+    showDests?: boolean;
+  };
   movable?: {
-    free?: boolean
-    color?: 'white' | 'black' | 'both'
-    dests?: Map<Key, Key[]>
-  }
+    free?: boolean;
+    color?: "white" | "black" | "both";
+    dests?: Map<Key, Key[]>;
+  };
 }
 
 export default function ChessgroundBoard({
@@ -31,17 +31,17 @@ export default function ChessgroundBoard({
   onMove,
   allowDragging = true,
   viewOnly = false,
-  orientation = 'white',
-  premovable = { enabled: false },
-  movable = { free: false, color: 'both' }
+  orientation = "white",
+  premovable = { enabled: true },
+  movable = { free: false, color: "both" },
 }: ChessgroundBoardProps) {
-  const boardRef = useRef<HTMLDivElement>(null)
-  const apiRef = useRef<Api | null>(null)
-  
+  const boardRef = useRef<HTMLDivElement>(null);
+  const apiRef = useRef<Api | null>(null);
+
   // Initialize the board
   useEffect(() => {
-    if (!boardRef.current) return
-    
+    if (!boardRef.current) return;
+
     const config: Config = {
       fen,
       orientation,
@@ -51,11 +51,12 @@ export default function ChessgroundBoard({
       addPieceZIndex: false,
       movable: {
         free: movable.free || false,
-        color: viewOnly ? undefined : (movable.color || 'both'),
+        color: viewOnly ? undefined : movable.color || "both",
         showDests: true,
+        dests: movable.dests,
         events: {
-          after: onMove
-        }
+          after: onMove,
+        },
       },
       premovable,
       draggable: {
@@ -63,34 +64,34 @@ export default function ChessgroundBoard({
         distance: 3,
         autoDistance: false,
         showGhost: true,
-        deleteOnDropOff: false
+        deleteOnDropOff: false,
       },
       selectable: {
-        enabled: true
+        enabled: true,
       },
       events: {
-        move: onMove
+        move: onMove,
       },
       animation: {
         enabled: true,
-        duration: 200
-      }
-    }
-    
-    apiRef.current = Chessground(boardRef.current, config)
-    
+        duration: 50,
+      },
+    };
+
+    apiRef.current = Chessground(boardRef.current, config);
+
     return () => {
-      apiRef.current?.destroy()
-    }
-  }, []) // Only initialize once
-  
+      apiRef.current?.destroy();
+    };
+  }, []); // Only initialize once
+
   // Update FEN when it changes
   useEffect(() => {
     if (apiRef.current && fen) {
-      apiRef.current.set({ fen })
+      apiRef.current.set({ fen });
     }
-  }, [fen])
-  
+  }, [fen]);
+
   // Update movable settings
   useEffect(() => {
     if (apiRef.current) {
@@ -98,38 +99,39 @@ export default function ChessgroundBoard({
         viewOnly,
         movable: {
           free: movable.free || false,
-          color: viewOnly ? undefined : (movable.color || 'both'),
+          color: viewOnly ? undefined : movable.color || "both",
           showDests: true,
+          dests: movable.dests,
           events: {
-            after: onMove
-          }
+            after: onMove,
+          },
         },
         draggable: {
-          enabled: allowDragging && !viewOnly
-        }
-      })
+          enabled: allowDragging && !viewOnly,
+        },
+      });
     }
-  }, [viewOnly, allowDragging, movable, onMove])
-  
+  }, [viewOnly, allowDragging, movable, onMove]);
+
   // Update orientation
   useEffect(() => {
     if (apiRef.current) {
-      apiRef.current.set({ orientation })
+      apiRef.current.set({ orientation });
     }
-  }, [orientation])
-  
+  }, [orientation]);
+
   // Method to programmatically make a move
   const makeMove = useCallback((from: Key, to: Key) => {
     if (apiRef.current) {
-      apiRef.current.move(from, to)
+      apiRef.current.move(from, to);
     }
-  }, [])
-  
+  }, []);
+
   // Method to get current FEN
   const getFen = useCallback(() => {
-    return apiRef.current?.getFen()
-  }, [])
-  
+    return apiRef.current?.getFen();
+  }, []);
+
   // Expose methods via ref if needed
   useEffect(() => {
     if (boardRef.current) {
@@ -137,19 +139,19 @@ export default function ChessgroundBoard({
       (boardRef.current as any).getFen = getFen;
       (boardRef.current as any).api = apiRef.current;
     }
-  }, [makeMove, getFen])
-  
+  }, [makeMove, getFen]);
+
   return (
-    <div 
+    <div
       ref={boardRef}
       style={{
-        width: '100%',
-        height: '100%',
-        maxWidth: '600px',
-        maxHeight: '600px',
-        aspectRatio: '1 / 1',
-        margin: '0 auto'
+        width: "100%",
+        height: "100%",
+        maxWidth: "600px",
+        maxHeight: "600px",
+        aspectRatio: "1 / 1",
+        margin: "0 auto",
       }}
     />
-  )
+  );
 }

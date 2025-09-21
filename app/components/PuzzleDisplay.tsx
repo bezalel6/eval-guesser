@@ -3,7 +3,6 @@
 import React, { useState, useCallback, useRef } from "react";
 import dynamic from 'next/dynamic';
 import {
-  Slider,
   Button,
   Typography,
   Container,
@@ -11,7 +10,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { Chess } from "chess.js";
-import { Key } from 'chessground/types';
+import type { Key } from 'chessground/types';
 
 // Dynamically import ChessgroundBoard to avoid SSR issues
 const ChessgroundBoard = dynamic(() => import('./ChessgroundBoard'), {
@@ -19,7 +18,8 @@ const ChessgroundBoard = dynamic(() => import('./ChessgroundBoard'), {
   loading: () => <div style={{ width: '100%', height: '100%', background: '#f0d9b5' }} />
 });
 
-const MATE_SCORE = 10000;
+const MAX_EVAL = 2000; // 20 pawns in centipawns
+const MATE_VALUE = 10000; // Special value for mate
 
 interface Puzzle {
   FEN: string;
@@ -37,10 +37,10 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
   const [loading, setLoading] = useState(false);
   const [puzzleId, setPuzzleId] = useState<string>(puzzle.PuzzleId);
 
-  // Local slider state for performance
+  // Local slider state for performance (in centipawns)
   const [sliderValue, setSliderValue] = useState(0);
 
-  // Chess instance for move handling (pseudo-legal moves)
+  // Chess instance for move handling and legal move generation
   const chessRef = useRef(new Chess());
 
   const fetchRandomPuzzle = useCallback(async () => {
@@ -83,6 +83,27 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
     }
   }, []);
 
+  // Calculate legal moves for current position
+  const getLegalMoves = useCallback((fen: string): Map<Key, Key[]> => {
+    const dests = new Map<Key, Key[]>();
+    try {
+      chessRef.current.load(fen);
+      const moves = chessRef.current.moves({ verbose: true });
+      
+      moves.forEach(move => {
+        const from = move.from as Key;
+        const to = move.to as Key;
+        if (!dests.has(from)) {
+          dests.set(from, []);
+        }
+        dests.get(from)!.push(to);
+      });
+    } catch (e) {
+      console.log("Error calculating moves:", e);
+    }
+    return dests;
+  }, []);
+
   // Handle piece moves from chessground
   const handleMove = useCallback(
     (from: Key, to: Key) => {
@@ -106,20 +127,28 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
     [currentFen]
   );
 
-  // Handle slider change - local state for performance
-  const handleSliderChange = useCallback((_event: Event, newValue: number | number[]) => {
-    setSliderValue(newValue as number);
+  // Handle range input change
+  const handleRangeChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(event.target.value, 10);
+    setSliderValue(value);
   }, []);
 
-  // Handle slider commit (mouse up or keyboard release)
-  const handleSliderCommit = useCallback((
-    _event: React.SyntheticEvent | Event,
-    newValue: number | number[]
-  ) => {
-    const value = newValue as number;
-    setSliderValue(value);
-    setUserGuess(value);
+  // Format evaluation for display (centipawns to decimal pawns)
+  const formatEval = useCallback((centipawns: number) => {
+    // Check for mate scores
+    if (Math.abs(centipawns) >= MATE_VALUE - 1000) {
+      const mateIn = Math.sign(centipawns) * (MATE_VALUE - Math.abs(centipawns));
+      return centipawns > 0 ? `M${Math.abs(mateIn)}` : `-M${Math.abs(mateIn)}`;
+    }
+    // Convert centipawns to pawns with 1 decimal
+    const pawns = centipawns / 100;
+    return pawns >= 0 ? `+${pawns.toFixed(1)}` : pawns.toFixed(1);
   }, []);
+
+  // Handle range input mouseup/touchend (when user finishes dragging)
+  const handleRangeRelease = useCallback(() => {
+    setUserGuess(sliderValue);
+  }, [sliderValue]);
 
   const handleSubmit = useCallback(() => {
     const difference = Math.abs(userGuess - evaluation);
@@ -144,75 +173,128 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
 
   return (
     <Container className="app-container">
-      <Typography variant="h3" gutterBottom>
+      <Typography variant="h2" gutterBottom sx={{ color: 'var(--text-primary)', fontWeight: 300 }}>
         Eval Guesser
       </Typography>
-      {puzzleId && (
-        <Typography variant="caption" gutterBottom>
-          Puzzle ID: {puzzleId}
-        </Typography>
-      )}
-      <Box className="board-container">
-        {loading || !currentFen ? (
-          <CircularProgress />
-        ) : (
-          <ChessgroundBoard
-            fen={currentFen}
-            onMove={handleMove}
-            allowDragging={true}
-            viewOnly={false}
-            orientation="white"
-            movable={{
-              free: false,
-              color: 'both'
-            }}
+      <Box className="game-board-wrapper">
+        <Box className="board-container">
+          {loading || !currentFen ? (
+            <CircularProgress sx={{ color: 'var(--accent)' }} />
+          ) : (
+            <ChessgroundBoard
+              fen={currentFen}
+              onMove={handleMove}
+              allowDragging={true}
+              viewOnly={false}
+              orientation="white"
+              movable={{
+                free: false,
+                color: 'both',
+                dests: getLegalMoves(currentFen)
+              }}
+            />
+          )}
+        </Box>
+        <Box className="eval-bar-container">
+          <input
+            type="range"
+            value={sliderValue}
+            onChange={handleRangeChange}
+            onMouseUp={handleRangeRelease}
+            onTouchEnd={handleRangeRelease}
+            min={-MAX_EVAL}
+            max={MAX_EVAL}
+            step={10}
+            disabled={showResult || loading}
+            className="eval-slider"
+            style={{ width: '100%' }}
+            aria-label="Evaluation slider"
           />
-        )}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5, mb: 0.5 }}>
+            <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>Black</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'var(--accent)' }}>
+              {formatEval(sliderValue)}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>White</Typography>
+          </Box>
+        </Box>
       </Box>
+      
       <Box className="controls-container">
-        <Button
-          variant="outlined"
-          onClick={handleResetPosition}
-          disabled={loading}
-          size="small"
-          sx={{ mb: 2 }}
-        >
-          Reset Position
-        </Button>
-
-        <Typography gutterBottom>Evaluation (Centipawns / Mate)</Typography>
-        <Slider
-          value={sliderValue}
-          onChange={handleSliderChange}
-          onChangeCommitted={handleSliderCommit}
-          aria-labelledby="discrete-slider"
-          valueLabelDisplay="auto"
-          step={10}
-          marks
-          min={-MATE_SCORE}
-          max={MATE_SCORE}
-          disabled={showResult || loading}
-        />
-        {showResult && <Typography>Actual Evaluation: {evaluation}</Typography>}
-        <Box sx={{ mt: 2 }}>
+        {!showResult ? (
           <Button
             variant="contained"
             onClick={handleSubmit}
-            disabled={showResult || loading}
-            sx={{ mr: 2 }}
-          >
-            Submit Guess
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={handleNextPuzzle}
             disabled={loading}
+            size="large"
+            sx={{ 
+              bgcolor: 'var(--accent)',
+              color: 'var(--bg-primary)',
+              px: 6,
+              py: 1.5,
+              fontSize: '1.1rem',
+              '&:hover': { 
+                bgcolor: '#9bc767' 
+              },
+              '&:disabled': {
+                bgcolor: 'var(--bg-secondary)',
+                color: 'var(--text-secondary)'
+              }
+            }}
           >
-            Next Puzzle
+            Submit Evaluation
           </Button>
-        </Box>
-        <Typography variant="h5" sx={{ mt: 4 }}>
-          Score: {score}
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <Typography variant="h6" sx={{ color: 'var(--text-primary)' }}>
+              Actual: <strong style={{ color: 'var(--accent)' }}>{formatEval(evaluation)}</strong>
+            </Typography>
+            <Typography variant="body1" sx={{ color: 'var(--text-secondary)' }}>
+              Difference: {Math.abs((userGuess - evaluation) / 100).toFixed(1)} pawns
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={handleNextPuzzle}
+              disabled={loading}
+              size="large"
+              sx={{ 
+                bgcolor: 'var(--accent)',
+                color: 'var(--bg-primary)',
+                px: 6,
+                py: 1.5,
+                fontSize: '1.1rem',
+                mt: 2,
+                '&:hover': { 
+                  bgcolor: '#9bc767' 
+                },
+                '&:disabled': {
+                  bgcolor: 'var(--bg-secondary)',
+                  color: 'var(--text-secondary)'
+                }
+              }}
+            >
+              Next Position
+            </Button>
+          </Box>
+        )}
+        
+        <Button
+          variant="text"
+          onClick={handleResetPosition}
+          disabled={loading}
+          size="small"
+          sx={{ 
+            mt: 2,
+            color: 'var(--text-secondary)',
+            '&:hover': { 
+              color: 'var(--text-primary)' 
+            }
+          }}
+        >
+          Reset Board
+        </Button>
+        <Typography variant="h4" sx={{ mt: 4, color: 'var(--text-primary)', fontWeight: 300 }}>
+          Score: <strong>{score}</strong>
         </Typography>
       </Box>
     </Container>
