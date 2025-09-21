@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model puzzles {
+  PuzzleId        String  @id
+  FEN             String?
+  Moves           String?
+  Rating          String?
+  RatingDeviation String?
+  Popularity      String?
+  NbPlays         String?
+  Themes          String?
+  GameUrl         String?
+  OpeningTags     String?
+
+  @@index([Popularity], map: "idx_popularity")
+  @@index([Themes], map: "idx_themes")
+  @@index([Rating], map: "idx_rating")
+}
