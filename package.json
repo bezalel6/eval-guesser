@@ -29,7 +29,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "portio --mine 3000 && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
