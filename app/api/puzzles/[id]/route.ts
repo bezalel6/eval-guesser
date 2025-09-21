@@ -3,13 +3,16 @@ import PuzzleService from '../../../lib/puzzle-service';
 
 const puzzleService = PuzzleService.getInstance();
 
-export async function GET() {
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const puzzle = await puzzleService.getRandomPuzzle();
+    const puzzle = await puzzleService.getPuzzleById(params.id);
     
     if (!puzzle) {
       return NextResponse.json(
-        { error: 'No puzzle found' },
+        { error: 'Puzzle not found' },
         { status: 404 }
       );
     }

@@ -23,10 +23,10 @@ function App() {
   const [showResult, setShowResult] = useState(false);
   const [loading, setLoading] = useState(true);
   const [puzzleId, setPuzzleId] = useState<string>("");
-  
+
   // Use ref for slider value to avoid re-renders
   const sliderValueRef = useRef(0);
-  
+
   // Chess instance for move handling (pseudo-legal moves)
   const chessRef = useRef(new Chess());
 
@@ -35,7 +35,7 @@ function App() {
     setShowResult(false);
     setUserGuess(0);
     sliderValueRef.current = 0;
-    
+
     try {
       const response = await fetch("/api/puzzles/random");
       const puzzle = await response.json();
@@ -48,7 +48,7 @@ function App() {
       setFen(puzzle.FEN);
       setCurrentFen(puzzle.FEN);
       setPuzzleId(puzzle.PuzzleId);
-      
+
       // Load position into chess instance
       try {
         chessRef.current.load(puzzle.FEN);
@@ -56,13 +56,14 @@ function App() {
         // If FEN is invalid for chess.js, create new instance
         chessRef.current = new Chess();
       }
-      
+
       // For now, use a random evaluation
       const tempEval = Math.floor(Math.random() * 2000) - 1000;
       setEvaluation(tempEval);
     } catch (error) {
       console.error("Failed to fetch puzzle", error);
-      const startingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+      const startingFen =
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
       setFen(startingFen);
       setCurrentFen(startingFen);
       setEvaluation(0);
@@ -77,38 +78,42 @@ function App() {
   }, [fetchRandomPuzzle]);
 
   // Handle piece drops - pseudo-legal moves only (no validation)
-  const onPieceDrop = useCallback((sourceSquare: string, targetSquare: string) => {
-    // Just update the position without validation
-    // This allows players to make any move to test their calculation
-    try {
-      const newChess = new Chess(currentFen);
-      // Try to make the move legally first
-      const move = newChess.move({
-        from: sourceSquare,
-        to: targetSquare,
-        promotion: 'q' // auto-promote to queen for simplicity
-      });
-      
-      if (move) {
-        // Legal move was made
-        setCurrentFen(newChess.fen());
-        return true;
+  const onPieceDrop = useCallback(
+    (sourceSquare: string, targetSquare: string) => {
+      // Just update the position without validation
+      // This allows players to make any move to test their calculation
+      try {
+        const newChess = new Chess(currentFen);
+        // Try to make the move legally first
+        const move = newChess.move({
+          from: sourceSquare,
+          to: targetSquare,
+          promotion: "q", // auto-promote to queen for simplicity
+        });
+
+        if (move) {
+          // Legal move was made
+          // setCurrentFen(newChess.fen());
+          return true;
+        }
+
+        // If not legal, allow pseudo-legal move by manually updating position
+        // Get current position
+        // const piece = newChess.get(sourceSquare);
+        // if (piece) {
+        //   newChess.remove(sourceSquare);
+        //   newChess.put(piece, targetSquare);
+        //   setCurrentFen(newChess.fen());
+        //   return true;
+        // }
+        return false;
+      } catch (e) {
+        console.log("Move failed:", e);
       }
-      
-      // If not legal, allow pseudo-legal move by manually updating position
-      // Get current position
-      const piece = newChess.get(sourceSquare);
-      if (piece) {
-        newChess.remove(sourceSquare);
-        newChess.put(piece, targetSquare);
-        setCurrentFen(newChess.fen());
-        return true;
-      }
-    } catch (e) {
-      console.log("Move failed:", e);
-    }
-    return false;
-  }, [currentFen]);
+      return false;
+    },
+    [currentFen]
+  );
 
   // Handle slider change (only update ref, not state)
   const handleSliderChange = (_event: Event, newValue: number | number[]) => {
@@ -116,7 +121,10 @@ function App() {
   };
 
   // Handle slider commit (mouse up or keyboard release)
-  const handleSliderCommit = (_event: React.SyntheticEvent | Event, newValue: number | number[]) => {
+  const handleSliderCommit = (
+    _event: React.SyntheticEvent | Event,
+    newValue: number | number[]
+  ) => {
     setUserGuess(newValue as number);
   };
 
@@ -130,7 +138,7 @@ function App() {
   const handleNextPuzzle = () => {
     fetchRandomPuzzle();
   };
-  
+
   const handleResetPosition = () => {
     setCurrentFen(fen);
     try {
@@ -141,14 +149,15 @@ function App() {
   };
 
   // Optimized board options
-  const boardOptions = {
+  const boardOptions: React.ComponentProps<typeof Chessboard>["options"] = {
     position: currentFen,
     allowDragging: true,
-    animationDurationInMs: 150, // Faster animations
+    animationDurationInMs: 50, // Faster animations
     dragActivationDistance: 0, // Instant drag response
     allowDragOffBoard: false,
     showAnimations: true,
     showNotation: true,
+    onPieceDrop: (d) => onPieceDrop(d.sourceSquare, d.targetSquare),
   };
 
   return (
@@ -165,10 +174,7 @@ function App() {
         {loading || !currentFen ? (
           <CircularProgress />
         ) : (
-          <Chessboard 
-            options={boardOptions}
-            onPieceDrop={onPieceDrop}
-          />
+          <Chessboard options={boardOptions} />
         )}
       </Box>
       <Box className="controls-container">
@@ -181,7 +187,7 @@ function App() {
         >
           Reset Position
         </Button>
-        
+
         <Typography gutterBottom>Evaluation (Centipawns / Mate)</Typography>
         <Slider
           value={userGuess}
