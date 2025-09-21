@@ -1,3 +1,8 @@
+/* Import Chessground styles */
+@import 'chessground/assets/chessground.base.css';
+@import 'chessground/assets/chessground.brown.css';
+@import 'chessground/assets/chessground.cburnett.css';
+
 body {
   background-color: #f0f0f0;
   margin: 0;

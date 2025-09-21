@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useMemo } from "react";
-import { Chessboard } from "react-chessboard";
+import React, { useState, useCallback, useRef } from "react";
+import dynamic from 'next/dynamic';
 import {
   Slider,
   Button,
@@ -11,6 +11,13 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { Chess } from "chess.js";
+import { Key } from 'chessground/types';
+
+// Dynamically import ChessgroundBoard to avoid SSR issues
+const ChessgroundBoard = dynamic(() => import('./ChessgroundBoard'), {
+  ssr: false,
+  loading: () => <div style={{ width: '100%', height: '100%', background: '#f0d9b5' }} />
+});
 
 const MATE_SCORE = 10000;
 
@@ -76,26 +83,25 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
     }
   }, []);
 
-  // Handle piece drops - reuse chess instance for performance
-  const onPieceDrop = useCallback(
-    (sourceSquare: string, targetSquare: string) => {
+  // Handle piece moves from chessground
+  const handleMove = useCallback(
+    (from: Key, to: Key) => {
       try {
         // Reuse existing chess instance
         chessRef.current.load(currentFen);
         const move = chessRef.current.move({
-          from: sourceSquare,
-          to: targetSquare,
+          from: from as string,
+          to: to as string,
           promotion: "q",
         });
 
         if (move) {
-          return true;
+          // Update the FEN if move is valid
+          setCurrentFen(chessRef.current.fen());
         }
-        return false;
       } catch (e) {
         console.log("Move failed:", e);
       }
-      return false;
     },
     [currentFen]
   );
@@ -135,17 +141,6 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
     }
   }, [fen]);
 
-  // Memoized board options for performance
-  const boardOptions = useMemo<React.ComponentProps<typeof Chessboard>["options"]>(() => ({
-    position: currentFen,
-    allowDragging: true,
-    animationDurationInMs: 50,
-    dragActivationDistance: 0,
-    allowDragOffBoard: false,
-    showAnimations: true,
-    showNotation: true,
-    onPieceDrop: (d) => onPieceDrop(d.sourceSquare, d.targetSquare),
-  }), [currentFen, onPieceDrop]);
 
   return (
     <Container className="app-container">
@@ -161,7 +156,17 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
         {loading || !currentFen ? (
           <CircularProgress />
         ) : (
-          <Chessboard options={boardOptions} />
+          <ChessgroundBoard
+            fen={currentFen}
+            onMove={handleMove}
+            allowDragging={true}
+            viewOnly={false}
+            orientation="white"
+            movable={{
+              free: false,
+              color: 'both'
+            }}
+          />
         )}
       </Box>
       <Box className="controls-container">
