@@ -39,6 +39,10 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
 
   // Local slider state for performance (in centipawns)
   const [sliderValue, setSliderValue] = useState(0);
+  const [hasInteractedWithEval, setHasInteractedWithEval] = useState(false);
+  const [boardModified, setBoardModified] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
 
   // Chess instance for move handling and legal move generation
   const chessRef = useRef(new Chess());
@@ -48,6 +52,8 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
     setShowResult(false);
     setUserGuess(0);
     setSliderValue(0);
+    setHasInteractedWithEval(false);
+    setBoardModified(false);
 
     try {
       const response = await fetch("/api/puzzles/random");
@@ -118,7 +124,9 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
 
         if (move) {
           // Update the FEN if move is valid
-          setCurrentFen(chessRef.current.fen());
+          const newFen = chessRef.current.fen();
+          setCurrentFen(newFen);
+          setBoardModified(true);
         }
       } catch (e) {
         console.log("Move failed:", e);
@@ -131,7 +139,10 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
   const handleRangeChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(event.target.value, 10);
     setSliderValue(value);
-  }, []);
+    if (!hasInteractedWithEval) {
+      setHasInteractedWithEval(true);
+    }
+  }, [hasInteractedWithEval]);
 
   // Format evaluation for display (centipawns to decimal pawns)
   const formatEval = useCallback((centipawns: number) => {
@@ -155,7 +166,20 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
     const points = Math.max(0, 1000 - difference);
     setScore(prevScore => prevScore + points);
     setShowResult(true);
-  }, [userGuess, evaluation]);
+    
+    // Update streak
+    if (difference <= 100) { // Within 1 pawn
+      setStreak(prev => {
+        const newStreak = prev + 1;
+        if (newStreak > bestStreak) {
+          setBestStreak(newStreak);
+        }
+        return newStreak;
+      });
+    } else {
+      setStreak(0);
+    }
+  }, [userGuess, evaluation, bestStreak]);
 
   const handleNextPuzzle = useCallback(() => {
     fetchRandomPuzzle();
@@ -163,6 +187,7 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
 
   const handleResetPosition = useCallback(() => {
     setCurrentFen(fen);
+    setBoardModified(false);
     try {
       chessRef.current.load(fen);
     } catch (_e) {
@@ -170,9 +195,59 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
     }
   }, [fen]);
 
+  // Get turn and check status from FEN
+  const getTurnFromFen = useCallback((fen: string) => {
+    try {
+      chessRef.current.load(fen);
+      return {
+        turn: chessRef.current.turn() === 'w' ? 'White' : 'Black',
+        inCheck: chessRef.current.inCheck()
+      };
+    } catch {
+      return { turn: 'White', inCheck: false };
+    }
+  }, []);
+
+  const { turn, inCheck } = getTurnFromFen(currentFen);
+
 
   return (
-    <Container className="app-container">
+    <Container className="app-container" sx={{ position: 'relative' }}>
+      {/* Streak panel */}
+      <Box sx={{ 
+        position: 'absolute', 
+        left: 20, 
+        top: '50%', 
+        transform: 'translateY(-50%)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        padding: 2,
+        background: 'var(--bg-secondary)',
+        borderRadius: 1,
+        border: '1px solid var(--border-color)',
+        minWidth: 120
+      }}>
+        <Box>
+          <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>Streak</Typography>
+          <Typography variant="h4" sx={{ color: streak > 0 ? 'var(--accent)' : 'var(--text-primary)' }}>
+            {streak}
+          </Typography>
+        </Box>
+        <Box>
+          <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>Best</Typography>
+          <Typography variant="h5" sx={{ color: 'var(--text-primary)' }}>
+            {bestStreak}
+          </Typography>
+        </Box>
+        <Box>
+          <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>Score</Typography>
+          <Typography variant="h5" sx={{ color: 'var(--text-primary)' }}>
+            {score}
+          </Typography>
+        </Box>
+      </Box>
+
       <Typography variant="h2" gutterBottom sx={{ color: 'var(--text-primary)', fontWeight: 300 }}>
         Eval Guesser
       </Typography>
@@ -192,9 +267,51 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
                 color: 'both',
                 dests: getLegalMoves(currentFen)
               }}
+              check={inCheck}
             />
           )}
         </Box>
+        
+        {/* Turn indicator */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          width: '100%', 
+          mb: 2,
+          px: 1
+        }}>
+          <Typography variant="body2" sx={{ 
+            color: turn === 'White' ? 'var(--text-primary)' : 'var(--text-secondary)',
+            fontWeight: turn === 'White' ? 'bold' : 'normal'
+          }}>
+            {turn === 'White' ? '● White to move' : '○ White'}
+          </Typography>
+          {boardModified && (
+            <Box 
+              onClick={handleResetPosition}
+              sx={{ 
+                cursor: 'pointer', 
+                opacity: 0.6,
+                '&:hover': { opacity: 1 },
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              title="Reset position"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--text-secondary)">
+                <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+              </svg>
+            </Box>
+          )}
+          <Typography variant="body2" sx={{ 
+            color: turn === 'Black' ? 'var(--text-primary)' : 'var(--text-secondary)',
+            fontWeight: turn === 'Black' ? 'bold' : 'normal'
+          }}>
+            {turn === 'Black' ? '● Black to move' : '○ Black'}
+          </Typography>
+        </Box>
+        
         <Box className="eval-bar-container">
           <input
             type="range"
@@ -206,14 +323,20 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
             max={MAX_EVAL}
             step={10}
             disabled={showResult || loading}
-            className="eval-slider"
+            className={`eval-slider ${!hasInteractedWithEval ? 'eval-slider-inactive' : ''}`}
             style={{ width: '100%' }}
             aria-label="Evaluation slider"
+            onMouseDown={() => !hasInteractedWithEval && setHasInteractedWithEval(true)}
+            onTouchStart={() => !hasInteractedWithEval && setHasInteractedWithEval(true)}
           />
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5, mb: 0.5 }}>
             <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>Black</Typography>
-            <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'var(--accent)' }}>
-              {formatEval(sliderValue)}
+            <Typography variant="h5" sx={{ 
+              fontWeight: 'bold', 
+              color: hasInteractedWithEval ? 'var(--accent)' : 'transparent',
+              minHeight: '32px'
+            }}>
+              {hasInteractedWithEval ? formatEval(sliderValue) : ''}
             </Typography>
             <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>White</Typography>
           </Box>
@@ -221,7 +344,7 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
       </Box>
       
       <Box className="controls-container">
-        {!showResult ? (
+        {!showResult && hasInteractedWithEval ? (
           <Button
             variant="contained"
             onClick={handleSubmit}
@@ -277,25 +400,6 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
             </Button>
           </Box>
         )}
-        
-        <Button
-          variant="text"
-          onClick={handleResetPosition}
-          disabled={loading}
-          size="small"
-          sx={{ 
-            mt: 2,
-            color: 'var(--text-secondary)',
-            '&:hover': { 
-              color: 'var(--text-primary)' 
-            }
-          }}
-        >
-          Reset Board
-        </Button>
-        <Typography variant="h4" sx={{ mt: 4, color: 'var(--text-primary)', fontWeight: 300 }}>
-          Score: <strong>{score}</strong>
-        </Typography>
       </Box>
     </Container>
   );

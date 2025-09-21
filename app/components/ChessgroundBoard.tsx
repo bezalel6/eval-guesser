@@ -24,6 +24,7 @@ interface ChessgroundBoardProps {
     color?: "white" | "black" | "both";
     dests?: Map<Key, Key[]>;
   };
+  check?: boolean | "white" | "black";
 }
 
 export default function ChessgroundBoard({
@@ -34,6 +35,7 @@ export default function ChessgroundBoard({
   orientation = "white",
   premovable = { enabled: true },
   movable = { free: false, color: "both" },
+  check = false,
 }: ChessgroundBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
@@ -49,6 +51,7 @@ export default function ChessgroundBoard({
       disableContextMenu: true,
       coordinates: true,
       addPieceZIndex: false,
+      check: check,
       movable: {
         free: movable.free || false,
         color: viewOnly ? undefined : movable.color || "both",
@@ -85,12 +88,12 @@ export default function ChessgroundBoard({
     };
   }, []); // Only initialize once
 
-  // Update FEN when it changes
+  // Update FEN and check status when they change
   useEffect(() => {
     if (apiRef.current && fen) {
-      apiRef.current.set({ fen });
+      apiRef.current.set({ fen, check: check });
     }
-  }, [fen]);
+  }, [fen, check]);
 
   // Update movable settings
   useEffect(() => {
