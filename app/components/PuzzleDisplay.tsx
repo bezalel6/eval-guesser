@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useMemo } from "react";
 import { Chessboard } from "react-chessboard";
 import {
   Slider,
@@ -14,7 +14,13 @@ import { Chess } from "chess.js";
 
 const MATE_SCORE = 10000;
 
-export default function PuzzleDisplay({ puzzle }: { puzzle: any }) {
+interface Puzzle {
+  FEN: string;
+  Rating: number;
+  PuzzleId: string;
+}
+
+const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Puzzle }) {
   const [fen, setFen] = useState<string>(puzzle.FEN);
   const [currentFen, setCurrentFen] = useState<string>(puzzle.FEN);
   const [evaluation, setEvaluation] = useState(puzzle.Rating);
@@ -24,8 +30,8 @@ export default function PuzzleDisplay({ puzzle }: { puzzle: any }) {
   const [loading, setLoading] = useState(false);
   const [puzzleId, setPuzzleId] = useState<string>(puzzle.PuzzleId);
 
-  // Use ref for slider value to avoid re-renders
-  const sliderValueRef = useRef(0);
+  // Local slider state for performance
+  const [sliderValue, setSliderValue] = useState(0);
 
   // Chess instance for move handling (pseudo-legal moves)
   const chessRef = useRef(new Chess());
@@ -34,7 +40,7 @@ export default function PuzzleDisplay({ puzzle }: { puzzle: any }) {
     setLoading(true);
     setShowResult(false);
     setUserGuess(0);
-    sliderValueRef.current = 0;
+    setSliderValue(0);
 
     try {
       const response = await fetch("/api/puzzles/random");
@@ -53,7 +59,7 @@ export default function PuzzleDisplay({ puzzle }: { puzzle: any }) {
       // Load position into chess instance
       try {
         chessRef.current.load(newPuzzle.FEN);
-      } catch (e) {
+      } catch (_e) {
         // If FEN is invalid for chess.js, create new instance
         chessRef.current = new Chess();
       }
@@ -70,12 +76,13 @@ export default function PuzzleDisplay({ puzzle }: { puzzle: any }) {
     }
   }, []);
 
-  // Handle piece drops - pseudo-legal moves only (no validation)
+  // Handle piece drops - reuse chess instance for performance
   const onPieceDrop = useCallback(
     (sourceSquare: string, targetSquare: string) => {
       try {
-        const newChess = new Chess(currentFen);
-        const move = newChess.move({
+        // Reuse existing chess instance
+        chessRef.current.load(currentFen);
+        const move = chessRef.current.move({
           from: sourceSquare,
           to: targetSquare,
           promotion: "q",
@@ -93,41 +100,43 @@ export default function PuzzleDisplay({ puzzle }: { puzzle: any }) {
     [currentFen]
   );
 
-  // Handle slider change (only update ref, not state)
-  const handleSliderChange = (_event: Event, newValue: number | number[]) => {
-    sliderValueRef.current = newValue as number;
-  };
+  // Handle slider change - local state for performance
+  const handleSliderChange = useCallback((_event: Event, newValue: number | number[]) => {
+    setSliderValue(newValue as number);
+  }, []);
 
   // Handle slider commit (mouse up or keyboard release)
-  const handleSliderCommit = (
+  const handleSliderCommit = useCallback((
     _event: React.SyntheticEvent | Event,
     newValue: number | number[]
   ) => {
-    setUserGuess(newValue as number);
-  };
+    const value = newValue as number;
+    setSliderValue(value);
+    setUserGuess(value);
+  }, []);
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     const difference = Math.abs(userGuess - evaluation);
     const points = Math.max(0, 1000 - difference);
-    setScore(score + points);
+    setScore(prevScore => prevScore + points);
     setShowResult(true);
-  };
+  }, [userGuess, evaluation]);
 
-  const handleNextPuzzle = () => {
+  const handleNextPuzzle = useCallback(() => {
     fetchRandomPuzzle();
-  };
+  }, [fetchRandomPuzzle]);
 
-  const handleResetPosition = () => {
+  const handleResetPosition = useCallback(() => {
     setCurrentFen(fen);
     try {
       chessRef.current.load(fen);
-    } catch (e) {
+    } catch (_e) {
       chessRef.current = new Chess();
     }
-  };
+  }, [fen]);
 
-  // Optimized board options
-  const boardOptions: React.ComponentProps<typeof Chessboard>["options"] = {
+  // Memoized board options for performance
+  const boardOptions = useMemo<React.ComponentProps<typeof Chessboard>["options"]>(() => ({
     position: currentFen,
     allowDragging: true,
     animationDurationInMs: 50,
@@ -136,7 +145,7 @@ export default function PuzzleDisplay({ puzzle }: { puzzle: any }) {
     showAnimations: true,
     showNotation: true,
     onPieceDrop: (d) => onPieceDrop(d.sourceSquare, d.targetSquare),
-  };
+  }), [currentFen, onPieceDrop]);
 
   return (
     <Container className="app-container">
@@ -168,7 +177,7 @@ export default function PuzzleDisplay({ puzzle }: { puzzle: any }) {
 
         <Typography gutterBottom>Evaluation (Centipawns / Mate)</Typography>
         <Slider
-          value={userGuess}
+          value={sliderValue}
           onChange={handleSliderChange}
           onChangeCommitted={handleSliderCommit}
           aria-labelledby="discrete-slider"
@@ -203,4 +212,6 @@ export default function PuzzleDisplay({ puzzle }: { puzzle: any }) {
       </Box>
     </Container>
   );
-}
+});
+
+export default PuzzleDisplay;

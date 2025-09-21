@@ -17,12 +17,23 @@
     "react": "^19.1.1",
     "react-chessboard": "^5.6.1",
     "react-dom": "^19.1.1",
+    "react-scan": "^0.4.3",
     "typescript": "^5.1.0"
   },
   "scripts": {
     "dev": "portio --mine 3000 && next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@next/eslint-plugin-next": "^15.5.3",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.0",
+    "eslint": "^9.36.0",
+    "eslint-config-next": "^15.5.3",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0"
   }
 }

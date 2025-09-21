@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 
 // Type alias for better naming convention
-type Puzzle = Prisma.puzzlesGetPayload<{}>;
+type Puzzle = Prisma.puzzlesGetPayload<Record<string, never>>;
 class PuzzleService {
   private static instance: PuzzleService;
   private prisma: PrismaClient;
