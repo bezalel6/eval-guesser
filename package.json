@@ -13,11 +13,13 @@
     "chess.js": "^1.4.0",
     "chessground": "^9.2.1",
     "csv-parse": "^6.1.0",
+    "dotenv": "^17.2.2",
     "next": "^15.5.3",
     "prisma": "^6.16.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-scan": "^0.4.3",
+    "sqlite3": "^5.1.7",
     "typescript": "^5.1.0"
   },
   "scripts": {
@@ -31,6 +33,7 @@
     "@next/eslint-plugin-next": "^15.5.3",
     "@typescript-eslint/eslint-plugin": "^8.44.0",
     "@typescript-eslint/parser": "^8.44.0",
+    "dotenv-cli": "^10.0.0",
     "eslint": "^9.36.0",
     "eslint-config-next": "^15.5.3",
     "eslint-plugin-react": "^7.37.5",
