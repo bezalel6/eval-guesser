@@ -41,6 +41,8 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
   const [sliderValue, setSliderValue] = useState(0);
   const [hasInteractedWithEval, setHasInteractedWithEval] = useState(false);
   const [boardModified, setBoardModified] = useState(false);
+  const [hasPremoved, setHasPremoved] = useState(false);
+  const [premove, setPremove] = useState<[string, string] | null>(null);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [boardFlipped, setBoardFlipped] = useState(false);
@@ -56,6 +58,8 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
     setHasInteractedWithEval(false);
     setBoardModified(false);
     setBoardFlipped(false);
+    setHasPremoved(false);
+    setPremove(null);
 
     try {
       const response = await fetch("/api/puzzles/random");
@@ -190,12 +194,28 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
   const handleResetPosition = useCallback(() => {
     setCurrentFen(fen);
     setBoardModified(false);
+    setHasPremoved(false);
+    setPremove(null);
     try {
       chessRef.current.load(fen);
     } catch (_e) {
       chessRef.current = new Chess();
     }
   }, [fen]);
+
+  // Handle premove setting
+  const handlePremoveSet = useCallback((orig: Key, dest: Key) => {
+    if (!hasPremoved && !boardModified) {
+      setPremove([orig as string, dest as string]);
+      setHasPremoved(true);
+    }
+  }, [hasPremoved, boardModified]);
+
+  // Handle premove unset
+  const handlePremoveUnset = useCallback(() => {
+    setPremove(null);
+    setHasPremoved(false);
+  }, []);
 
   // Get turn and check status from FEN
   const getTurnFromFen = useCallback((fen: string) => {
@@ -238,7 +258,7 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
         background: 'var(--bg-secondary)',
         borderRadius: 1,
         border: '1px solid var(--border-color)',
-        minWidth: 120
+        minWidth: 140
       }}>
         <Box>
           <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>Streak</Typography>
@@ -258,29 +278,84 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
             {score}
           </Typography>
         </Box>
+        
+        {showResult && (
+          <>
+            <Box sx={{ borderTop: '1px solid var(--border-color)', pt: 2 }}>
+              <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>Computer Eval</Typography>
+              <Typography variant="h5" sx={{ color: 'var(--accent)', fontWeight: 'bold' }}>
+                {formatEval(evaluation)}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'var(--text-secondary)', display: 'block', mt: 0.5 }}>
+                Diff: {Math.abs((userGuess - evaluation) / 100).toFixed(1)}
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              onClick={handleNextPuzzle}
+              disabled={loading}
+              fullWidth
+              sx={{ 
+                bgcolor: 'var(--accent)',
+                color: 'var(--bg-primary)',
+                py: 1,
+                '&:hover': { 
+                  bgcolor: '#9bc767' 
+                },
+                '&:disabled': {
+                  bgcolor: 'var(--bg-secondary)',
+                  color: 'var(--text-secondary)'
+                }
+              }}
+            >
+              Next Position
+            </Button>
+          </>
+        )}
       </Box>
 
       <Typography variant="h2" gutterBottom sx={{ color: 'var(--text-primary)', fontWeight: 300 }}>
         Eval Guesser
       </Typography>
       <Box className="game-board-wrapper">
-        <Box className="board-container">
-          {loading || !currentFen ? (
-            <CircularProgress sx={{ color: 'var(--accent)' }} />
-          ) : (
-            <ChessgroundBoard
-              fen={currentFen}
-              onMove={handleMove}
-              allowDragging={true}
-              viewOnly={false}
-              orientation={boardOrientation}
-              movable={{
-                free: false,
-                color: 'both',
-                dests: getLegalMoves(currentFen)
-              }}
-              check={inCheck}
-            />
+        <Box className="board-container" sx={{ position: 'relative' }}>
+          <ChessgroundBoard
+            fen={currentFen}
+            onMove={handleMove}
+            allowDragging={!boardModified}
+            viewOnly={boardModified}
+            orientation={boardOrientation}
+            movable={{
+              free: false,
+              color: boardModified ? undefined : 'both',
+              dests: boardModified ? new Map() : getLegalMoves(currentFen)
+            }}
+            premovable={{
+              enabled: !boardModified && !hasPremoved,
+              showDests: true,
+              castle: true,
+              events: {
+                set: handlePremoveSet,
+                unset: handlePremoveUnset
+              }
+            }}
+            check={inCheck}
+          />
+          {loading && (
+            <Box sx={{ 
+              position: 'absolute', 
+              top: 0, 
+              left: 0, 
+              right: 0, 
+              bottom: 0, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              background: 'rgba(0,0,0,0.5)',
+              borderRadius: '8px'
+            }}>
+              <CircularProgress sx={{ color: 'var(--accent)' }} />
+            </Box>
           )}
         </Box>
         
@@ -300,7 +375,6 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
             alignItems: 'center',
             gap: 1
           }}>
-            <span style={{ fontSize: '1.2em' }}>{turn === 'White' ? '○' : '●'}</span>
             {turn} to move
           </Typography>
           
@@ -394,38 +468,8 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
           >
             Submit Evaluation
           </Button>
-        ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-            <Typography variant="h6" sx={{ color: 'var(--text-primary)' }}>
-              Actual: <strong style={{ color: 'var(--accent)' }}>{formatEval(evaluation)}</strong>
-            </Typography>
-            <Typography variant="body1" sx={{ color: 'var(--text-secondary)' }}>
-              Difference: {Math.abs((userGuess - evaluation) / 100).toFixed(1)} pawns
-            </Typography>
-            <Button
-              variant="contained"
-              onClick={handleNextPuzzle}
-              disabled={loading}
-              size="large"
-              sx={{ 
-                bgcolor: 'var(--accent)',
-                color: 'var(--bg-primary)',
-                px: 6,
-                py: 1.5,
-                fontSize: '1.1rem',
-                mt: 2,
-                '&:hover': { 
-                  bgcolor: '#9bc767' 
-                },
-                '&:disabled': {
-                  bgcolor: 'var(--bg-secondary)',
-                  color: 'var(--text-secondary)'
-                }
-              }}
-            >
-              Next Position
-            </Button>
-          </Box>
+        ) : !showResult && (
+          <Box sx={{ minHeight: 48 }} />
         )}
       </Box>
     </Container>

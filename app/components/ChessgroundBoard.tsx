@@ -18,10 +18,15 @@ interface ChessgroundBoardProps {
   premovable?: {
     enabled: boolean;
     showDests?: boolean;
+    castle?: boolean;
+    events?: {
+      set?: (orig: Key, dest: Key) => void;
+      unset?: () => void;
+    };
   };
   movable?: {
     free?: boolean;
-    color?: "white" | "black" | "both";
+    color?: "white" | "black" | "both" | undefined;
     dests?: Map<Key, Key[]>;
   };
   check?: boolean | "white" | "black";
