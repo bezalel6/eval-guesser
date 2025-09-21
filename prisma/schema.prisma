@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -12,10 +11,10 @@ model puzzles {
   PuzzleId        String  @id
   FEN             String?
   Moves           String?
-  Rating          String?
-  RatingDeviation String?
-  Popularity      String?
-  NbPlays         String?
+  Rating          Int?
+  RatingDeviation Int?
+  Popularity      Int?
+  NbPlays         Int?
   Themes          String?
   GameUrl         String?
   OpeningTags     String?
