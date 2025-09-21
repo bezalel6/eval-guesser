@@ -43,6 +43,7 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
   const [boardModified, setBoardModified] = useState(false);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
+  const [boardFlipped, setBoardFlipped] = useState(false);
 
   // Chess instance for move handling and legal move generation
   const chessRef = useRef(new Chess());
@@ -54,6 +55,7 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
     setSliderValue(0);
     setHasInteractedWithEval(false);
     setBoardModified(false);
+    setBoardFlipped(false);
 
     try {
       const response = await fetch("/api/puzzles/random");
@@ -201,14 +203,24 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
       chessRef.current.load(fen);
       return {
         turn: chessRef.current.turn() === 'w' ? 'White' : 'Black',
+        turnColor: chessRef.current.turn() as 'w' | 'b',
         inCheck: chessRef.current.inCheck()
       };
     } catch {
-      return { turn: 'White', inCheck: false };
+      return { turn: 'White', turnColor: 'w' as const, inCheck: false };
     }
   }, []);
 
-  const { turn, inCheck } = getTurnFromFen(currentFen);
+  const { turn, turnColor, inCheck } = getTurnFromFen(currentFen);
+  
+  // Auto-orient board to player to move (unless manually flipped)
+  const boardOrientation = boardFlipped 
+    ? (turnColor === 'w' ? 'black' : 'white') 
+    : (turnColor === 'w' ? 'white' : 'black');
+
+  const handleFlipBoard = useCallback(() => {
+    setBoardFlipped(prev => !prev);
+  }, []);
 
 
   return (
@@ -261,7 +273,7 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
               onMove={handleMove}
               allowDragging={true}
               viewOnly={false}
-              orientation="white"
+              orientation={boardOrientation}
               movable={{
                 free: false,
                 color: 'both',
@@ -272,7 +284,7 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
           )}
         </Box>
         
-        {/* Turn indicator */}
+        {/* Turn indicator and board controls */}
         <Box sx={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
@@ -282,34 +294,51 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
           px: 1
         }}>
           <Typography variant="body2" sx={{ 
-            color: turn === 'White' ? 'var(--text-primary)' : 'var(--text-secondary)',
-            fontWeight: turn === 'White' ? 'bold' : 'normal'
+            color: 'var(--text-primary)',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
           }}>
-            {turn === 'White' ? '● White to move' : '○ White'}
+            <span style={{ fontSize: '1.2em' }}>{turn === 'White' ? '○' : '●'}</span>
+            {turn} to move
           </Typography>
-          {boardModified && (
+          
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            {boardModified && (
+              <Box 
+                onClick={handleResetPosition}
+                sx={{ 
+                  cursor: 'pointer', 
+                  opacity: 0.6,
+                  '&:hover': { opacity: 1 },
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title="Reset position"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--text-secondary)">
+                  <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+                </svg>
+              </Box>
+            )}
+            
             <Box 
-              onClick={handleResetPosition}
+              onClick={handleFlipBoard}
               sx={{ 
                 cursor: 'pointer', 
-                opacity: 0.6,
+                opacity: 0.7,
                 '&:hover': { opacity: 1 },
                 display: 'flex',
                 alignItems: 'center'
               }}
-              title="Reset position"
+              title="Flip board"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--text-secondary)">
-                <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+                <path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15 12 18.17z"/>
               </svg>
             </Box>
-          )}
-          <Typography variant="body2" sx={{ 
-            color: turn === 'Black' ? 'var(--text-primary)' : 'var(--text-secondary)',
-            fontWeight: turn === 'Black' ? 'bold' : 'normal'
-          }}>
-            {turn === 'Black' ? '● Black to move' : '○ Black'}
-          </Typography>
+          </Box>
         </Box>
         
         <Box className="eval-bar-container">
@@ -329,8 +358,7 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
             onMouseDown={() => !hasInteractedWithEval && setHasInteractedWithEval(true)}
             onTouchStart={() => !hasInteractedWithEval && setHasInteractedWithEval(true)}
           />
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5, mb: 0.5 }}>
-            <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>Black</Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1.5, mb: 0.5 }}>
             <Typography variant="h5" sx={{ 
               fontWeight: 'bold', 
               color: hasInteractedWithEval ? 'var(--accent)' : 'transparent',
@@ -338,7 +366,6 @@ const PuzzleDisplay = React.memo(function PuzzleDisplay({ puzzle }: { puzzle: Pu
             }}>
               {hasInteractedWithEval ? formatEval(sliderValue) : ''}
             </Typography>
-            <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>White</Typography>
           </Box>
         </Box>
       </Box>
