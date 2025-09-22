@@ -9,7 +9,6 @@ import EvaluationSlider from "./EvaluationSlider";
 import ResultsModal from "./ResultsModal";
 import BestMoveChallenge from "./BestMoveChallenge";
 import AchievementToast from "./AchievementToast";
-import Timer from "./Timer";
 import { Box } from "@mui/material";
 
 interface GameProps {
@@ -111,7 +110,6 @@ export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu }:
         slider={<EvaluationSlider state={state} dispatch={dispatch} onGuess={handleGuess} isBoardModified={state.currentFen !== state.puzzle.FEN} />}
         controls={<Box sx={{ minHeight: 48, mt: 2 }} />}
       />
-      <Timer startTime={state.timeStarted} phase={state.phase} />
       <ResultsModal state={state} onNextPuzzle={fetchRandomPuzzle} />
       <AchievementToast 
         achievements={state.newAchievements} 

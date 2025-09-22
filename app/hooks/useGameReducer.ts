@@ -32,11 +32,8 @@ export interface GameState {
   bestMoveShown: boolean;
   currentTheme: string | null;
   // New scoring properties
-  timeStarted: number | null;
-  timeEnded: number | null;
   perfectStreak: number;
   perfectCount: number;
-  speedDemonCount: number;
   bestMoveCount: number;
   totalPuzzles: number;
   currentScoreBreakdown: ScoreBreakdown | null;
@@ -81,11 +78,8 @@ const initialState: GameState = {
   bestMoveShown: false,
   currentTheme: null,
   // New scoring properties
-  timeStarted: null,
-  timeEnded: null,
   perfectStreak: 0,
   perfectCount: 0,
-  speedDemonCount: 0,
   bestMoveCount: 0,
   totalPuzzles: 0,
   currentScoreBreakdown: null,
@@ -113,8 +107,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         userGuess: 0,
         hasInteractedWithEval: false,
         bestMoveShown: false,
-        timeStarted: Date.now(), // Start timer when puzzle loads
-        timeEnded: null,
         moveQuality: null,
         currentScoreBreakdown: null,
         newAchievements: [],
@@ -144,15 +136,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           phase: 'guessing',
         };
       }
-
-      // Calculate time taken
-      const timeTaken = state.timeStarted ? (Date.now() - state.timeStarted) / 1000 : 999;
       
       // Calculate score breakdown
       const difference = Math.abs(state.userGuess - newPuzzleState.Rating);
       const scoreBreakdown = calculateTotalScore(
         difference,
-        timeTaken,
         state.streak,
         state.perfectStreak,
         null // No move quality yet
@@ -161,13 +149,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Update stats
       const isCorrect = difference <= 100; // Within 1 pawn
       const isPerfect = scoreBreakdown.accuracyTier === 'perfect';
-      const isSpeedDemon = timeTaken < 10;
       
       const newStreak = isCorrect ? state.streak + 1 : 0;
       const newPerfectStreak = isPerfect ? state.perfectStreak + 1 : 0;
       const newBestStreak = Math.max(state.bestStreak, newStreak);
       const newPerfectCount = state.perfectCount + (isPerfect ? 1 : 0);
-      const newSpeedDemonCount = state.speedDemonCount + (isSpeedDemon ? 1 : 0);
       const newTotalPuzzles = state.totalPuzzles + 1;
       const newScore = state.score + scoreBreakdown.totalPoints;
       
@@ -180,7 +166,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         streak: newStreak,
         perfectStreak: newPerfectStreak,
         bestMoveCount: state.bestMoveCount,
-        speedDemonCount: newSpeedDemonCount,
         totalPuzzles: newTotalPuzzles,
         totalScore: newScore,
       };
@@ -196,11 +181,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         bestStreak: newBestStreak,
         perfectStreak: newPerfectStreak,
         perfectCount: newPerfectCount,
-        speedDemonCount: newSpeedDemonCount,
         totalPuzzles: newTotalPuzzles,
         currentScoreBreakdown: scoreBreakdown,
         phase: 'best-move-challenge', // Go to best move challenge
-        timeEnded: Date.now(),
         comboMultiplier: newComboMultiplier,
         achievements: [...state.achievements, ...newUnlockedAchievements],
         unlockedAchievementIds: allUnlockedIds,
@@ -270,11 +253,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const moveQuality: 'best' | 'good' | 'wrong' = isCorrect ? 'best' : 'wrong';
       
       // Recalculate score with move bonus
-      const timeTaken = state.timeStarted ? (state.timeEnded! - state.timeStarted) / 1000 : 999;
       const difference = Math.abs(state.userGuess - state.puzzle.Rating);
       const updatedScoreBreakdown = calculateTotalScore(
         difference,
-        timeTaken,
         state.streak,
         state.perfectStreak,
         moveQuality
@@ -290,7 +271,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         streak: state.streak,
         perfectStreak: state.perfectStreak,
         bestMoveCount: newBestMoveCount,
-        speedDemonCount: state.speedDemonCount,
         totalPuzzles: state.totalPuzzles,
         totalScore: newScore,
       };
@@ -339,7 +319,6 @@ export function useGameReducer(initialPuzzle: Puzzle) {
     puzzle: initialPuzzle,
     currentFen: initialPuzzle.FEN,
     phase: 'guessing' as GamePhase,
-    timeStarted: Date.now(), // Start timer immediately for initial puzzle
   });
 
   return { state, dispatch };

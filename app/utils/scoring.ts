@@ -1,7 +1,6 @@
 export interface ScoreBreakdown {
   basePoints: number;
   accuracyBonus: number;
-  speedBonus: number;
   moveBonus: number;
   streakMultiplier: number;
   perfectStreakBonus: number;
@@ -37,13 +36,6 @@ export function calculateEvaluationScore(difference: number): { base: number; bo
   }
 }
 
-// Speed bonus calculation
-export function calculateSpeedBonus(timeInSeconds: number): number {
-  if (timeInSeconds < 10) return 300;
-  if (timeInSeconds < 20) return 200;
-  if (timeInSeconds < 30) return 100;
-  return 0;
-}
 
 // Streak multiplier calculation
 export function calculateStreakMultiplier(streak: number): number {
@@ -71,7 +63,6 @@ export function calculateMoveBonus(moveQuality: 'best' | 'good' | 'wrong' | null
 // Main scoring function
 export function calculateTotalScore(
   evalDifference: number,
-  timeInSeconds: number,
   streak: number,
   perfectStreak: number,
   moveQuality: 'best' | 'good' | 'wrong' | null = null
@@ -79,13 +70,12 @@ export function calculateTotalScore(
   const evalScore = calculateEvaluationScore(evalDifference);
   const basePoints = evalScore.base;
   const accuracyBonus = evalScore.bonus;
-  const speedBonus = calculateSpeedBonus(timeInSeconds);
   const moveBonus = calculateMoveBonus(moveQuality);
   const streakMultiplier = calculateStreakMultiplier(streak);
   const perfectStreakBonus = calculatePerfectStreakBonus(perfectStreak);
   
   // Apply multiplier to base score components
-  const multipliedBase = Math.floor((basePoints + accuracyBonus + speedBonus) * streakMultiplier);
+  const multipliedBase = Math.floor((basePoints + accuracyBonus) * streakMultiplier);
   const totalPoints = multipliedBase + moveBonus + perfectStreakBonus;
   
   // Generate feedback text
@@ -114,7 +104,6 @@ export function calculateTotalScore(
   return {
     basePoints,
     accuracyBonus,
-    speedBonus,
     moveBonus,
     streakMultiplier,
     perfectStreakBonus,
@@ -140,10 +129,6 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'perfect_streak_3', name: 'Triple Perfect', description: 'Get 3 perfect evaluations in a row', icon: '💎' },
   { id: 'perfect_streak_5', name: 'Flawless', description: 'Get 5 perfect evaluations in a row', icon: '💫' },
   
-  // Speed achievements
-  { id: 'speed_demon_1', name: 'Quick Thinker', description: 'Solve a puzzle in under 10 seconds', icon: '⚡' },
-  { id: 'speed_demon_10', name: 'Speed Demon', description: 'Solve 10 puzzles in under 10 seconds', icon: '🚀' },
-  
   // Move bonus achievements
   { id: 'best_move_1', name: 'Tactical Eye', description: 'Play the best move after evaluation', icon: '♟️' },
   { id: 'best_move_10', name: 'Chess Vision', description: 'Play 10 best moves after evaluation', icon: '👁️' },
@@ -167,7 +152,6 @@ export function checkAchievements(
     streak: number;
     perfectStreak: number;
     bestMoveCount: number;
-    speedDemonCount: number;
     totalPuzzles: number;
     totalScore: number;
   },
@@ -204,12 +188,6 @@ export function checkAchievements(
         break;
       case 'perfect_streak_5':
         unlocked = stats.perfectStreak >= 5;
-        break;
-      case 'speed_demon_1':
-        unlocked = stats.speedDemonCount >= 1;
-        break;
-      case 'speed_demon_10':
-        unlocked = stats.speedDemonCount >= 10;
         break;
       case 'best_move_1':
         unlocked = stats.bestMoveCount >= 1;

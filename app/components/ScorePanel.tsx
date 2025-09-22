@@ -6,7 +6,6 @@ import { GameState, GameAction } from "../hooks/useGameReducer";
 import { motion } from "framer-motion";
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import BoltIcon from '@mui/icons-material/Bolt';
 import StarIcon from '@mui/icons-material/Star';
 
 const THEMES = [
@@ -36,15 +35,8 @@ export default function ScorePanel({ state, dispatch }: ScorePanelProps) {
     comboMultiplier,
     perfectStreak,
     totalPuzzles,
-    achievements,
-    timeStarted,
-    phase
+    achievements
   } = state;
-  
-  // Calculate elapsed time
-  const elapsedTime = timeStarted && phase === 'guessing' 
-    ? Math.floor((Date.now() - timeStarted) / 1000)
-    : 0;
 
   const handleThemeChange = (event: SelectChangeEvent<string>) => {
     const theme = event.target.value === 'All' ? null : event.target.value;
@@ -108,22 +100,6 @@ export default function ScorePanel({ state, dispatch }: ScorePanelProps) {
             size="small"
             sx={{ fontWeight: 'bold' }}
           />
-        </Box>
-      )}
-      
-      {/* Timer (only show during guessing) */}
-      {phase === 'guessing' && elapsedTime < 30 && (
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="caption" color="text.secondary">Time</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {elapsedTime < 10 && <BoltIcon sx={{ fontSize: 20, color: 'lightblue', mr: 0.5 }} />}
-            <Typography variant="h6" color={elapsedTime < 10 ? "info.main" : elapsedTime < 20 ? "warning.main" : "text.primary"}>
-              {elapsedTime}s
-            </Typography>
-          </Box>
-          {elapsedTime < 10 && (
-            <Typography variant="caption" color="info.main">Speed bonus active!</Typography>
-          )}
         </Box>
       )}
       

@@ -5,7 +5,6 @@ import React from "react";
 import { Modal, Box, Typography, Button, Fade, Divider, Chip, LinearProgress } from "@mui/material";
 import { GameState, formatEval } from "../hooks/useGameReducer";
 import { motion } from "framer-motion";
-import SpeedIcon from '@mui/icons-material/Speed';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 
@@ -92,16 +91,6 @@ export default function ResultsModal({ state, onNextPuzzle }: ResultsModalProps)
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="body2">Accuracy Bonus</Typography>
                   <Typography variant="body2" fontWeight="bold" color="success.main">+{currentScoreBreakdown.accuracyBonus}</Typography>
-                </Box>
-              )}
-              
-              {currentScoreBreakdown.speedBonus > 0 && (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2">
-                    <SpeedIcon sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />
-                    Speed Bonus
-                  </Typography>
-                  <Typography variant="body2" fontWeight="bold" color="info.main">+{currentScoreBreakdown.speedBonus}</Typography>
                 </Box>
               )}
               
