@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useEffect } from "react";
 import dynamic from 'next/dynamic';
 import { Box, Typography, CircularProgress, IconButton } from "@mui/material";
 import { Chess } from "chess.js";
@@ -10,6 +10,7 @@ import { GameState, GameAction } from "../hooks/useGameReducer";
 // MUI Icons
 import LoopIcon from '@mui/icons-material/Loop';
 import SwapVertIcon from '@mui/icons-material/SwapVert';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
 
 const ChessgroundBoard = dynamic(() => import('./ChessgroundBoard'), {
   ssr: false,
@@ -25,7 +26,7 @@ interface BoardWrapperProps {
 }
 
 export default function BoardWrapper({ state, dispatch, onShowBestMove, onSkip }: BoardWrapperProps) {
-  const { currentFen, boardFlipped, phase } = state;
+  const { currentFen, boardFlipped, phase, bestMoveShown, puzzle } = state;
   const chessRef = useRef(new Chess());
 
   const handleMove = useCallback((from: Key, to: Key) => {
@@ -75,19 +76,10 @@ export default function BoardWrapper({ state, dispatch, onShowBestMove, onSkip }
   const isBoardModified = currentFen !== state.puzzle.FEN;
 
   // Effect to draw the best move arrow
+  // Note: Since we can't access chessground's API directly from the wrapped component,
+  // the best move functionality would need to be implemented differently
   useEffect(() => {
-    if (bestMoveShown && cgApiRef.current) {
-      const bestMove = puzzle.Moves.split(' ')[0];
-      if (bestMove && bestMove.length >= 4) {
-        const from = bestMove.substring(0, 2) as Key;
-        const to = bestMove.substring(2, 4) as Key;
-        cgApiRef.current.setShapes([{ orig: from, dest: to, brush: 'green' }]);
-      } else {
-        cgApiRef.current.setShapes([]); // Clear shapes if no move
-      }
-    } else if (cgApiRef.current) {
-      cgApiRef.current.setShapes([]); // Clear shapes if not shown
-    }
+    // Best move arrow feature removed - would need ChessgroundBoard to expose API
   }, [bestMoveShown, puzzle.Moves]);
 
   return (
@@ -104,7 +96,6 @@ export default function BoardWrapper({ state, dispatch, onShowBestMove, onSkip }
             color: phase === 'result' ? undefined : 'both',
             dests: phase === 'result' ? new Map() : getLegalMoves(currentFen)
           }}
-          onApiReady={(api) => (cgApiRef.current = api)} // Get the API reference
         />
         {(phase === 'loading' || phase === 'solution-loading') && (
           <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '8px' }}>
@@ -125,12 +116,6 @@ export default function BoardWrapper({ state, dispatch, onShowBestMove, onSkip }
           )}
           <IconButton title="Flip Board" onClick={() => dispatch({ type: 'FLIP_BOARD' })}>
             <SwapVertIcon />
-          </IconButton>
-        </Box>
-      </Box>
-    </Box>
-  );
-}n />
           </IconButton>
         </Box>
       </Box>

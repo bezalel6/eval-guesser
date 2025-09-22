@@ -87,9 +87,6 @@ export default function ChessgroundBoard({
     };
 
     apiRef.current = Chessground(boardRef.current, config);
-    if (onApiReady) {
-      onApiReady(apiRef.current);
-    }
 
     return () => {
       apiRef.current?.destroy();

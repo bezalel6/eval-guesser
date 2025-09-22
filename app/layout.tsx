@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import theme from "../theme";
+import theme from "./theme";
 import Header from "./components/Header";
 import "./globals.css";
 

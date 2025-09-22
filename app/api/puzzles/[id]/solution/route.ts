@@ -4,9 +4,9 @@ import PuzzleService from '@/app/lib/puzzle-service';
 
 const puzzleService = PuzzleService.getInstance();
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const puzzleId = params.id;
+    const { id: puzzleId } = await params;
     if (!puzzleId) {
       return NextResponse.json({ error: 'Puzzle ID is required' }, { status: 400 });
     }
@@ -21,7 +21,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ Moves: puzzle.Moves });
 
   } catch (error) {
-    console.error(`Failed to fetch puzzle solution for ID ${params.id}:`, error);
+    console.error(`Failed to fetch puzzle solution:`, error);
     return NextResponse.json({ error: 'Failed to fetch puzzle solution' }, { status: 500 });
   }
 }

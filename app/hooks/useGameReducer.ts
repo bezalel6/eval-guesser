@@ -15,7 +15,7 @@ export interface Puzzle {
   OpeningTags?: string;
 }
 
-export type GamePhase = 'loading' | 'guessing' | 'result';
+export type GamePhase = 'loading' | 'guessing' | 'result' | 'solution-loading';
 
 export interface GameState {
   puzzle: Puzzle;
@@ -48,14 +48,14 @@ export type GameAction =
   | { type: 'SET_THEME'; payload: string | null };
 
 const initialState: GameState = {
-  puzzle: { PuzzleId: '', FEN: '', Rating: 0 },
+  puzzle: { PuzzleId: '', FEN: '', Moves: '', Rating: 0 },
   currentFen: '',
   userGuess: 0,
   sliderValue: 0,
   score: 0,
   streak: 0,
   bestStreak: 0,
-  phase: 'loading',
+  phase: 'loading' as GamePhase,
   boardFlipped: false,
   hasInteractedWithEval: false,
   bestMoveShown: false,
@@ -170,7 +170,7 @@ export function useGameReducer(initialPuzzle: Puzzle) {
     ...initialState,
     puzzle: initialPuzzle,
     currentFen: initialPuzzle.FEN,
-    phase: 'guessing',
+    phase: 'guessing' as GamePhase,
   });
 
   return { state, dispatch };
@@ -184,9 +184,6 @@ export const formatEval = (centipawns: number) => {
   }
   const pawns = centipawns / 100;
   return pawns >= 0 ? `+${pawns.toFixed(1)}` : pawns.toFixed(1);
-};
-
-export const MAX_EVAL_CONST = MAX_EVAL;wns.toFixed(1)}` : pawns.toFixed(1);
 };
 
 export const MAX_EVAL_CONST = MAX_EVAL;

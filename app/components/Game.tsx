@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useGameReducer, Puzzle } from "../hooks/useGameReducer";
 import GameLayout from "./GameLayout";
 import ScorePanel from "./ScorePanel";
@@ -44,8 +44,6 @@ export default function Game({ initialPuzzle }: GameProps) {
     }
   };
 
-  const { state, dispatch } = useGameReducer(initialPuzzle);
-
   const fetchRandomPuzzle = React.useCallback(async () => {
     dispatch({ type: "FETCH_NEW_PUZZLE_START" });
     try {
@@ -79,8 +77,6 @@ export default function Game({ initialPuzzle }: GameProps) {
   useEffect(() => {
     fetchRandomPuzzle();
   }, [state.currentTheme, fetchRandomPuzzle]);
-
-  const fetchSolution = async () => {
 
   return (
     <>

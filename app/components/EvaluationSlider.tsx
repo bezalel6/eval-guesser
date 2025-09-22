@@ -43,7 +43,7 @@ export default function EvaluationSlider({ state, dispatch, onGuess, isBoardModi
         </Typography>
       </Box>
 
-      {phase === 'guessing' && hasInteractedWithEval && (
+      {(phase === 'guessing' || phase === 'solution-loading') && hasInteractedWithEval && (
         <Button
           variant="contained"
           onClick={onGuess} // Use the new handler
@@ -55,7 +55,5 @@ export default function EvaluationSlider({ state, dispatch, onGuess, isBoardModi
         </Button>
       )}
     </Box>
-  );
-} </Box>
   );
 }
