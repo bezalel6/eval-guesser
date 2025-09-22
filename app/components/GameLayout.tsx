@@ -6,13 +6,15 @@ import { Container, Box } from "@mui/material";
 interface GameLayoutProps {
   scorePanel: React.ReactNode;
   board: React.ReactNode;
-  slider: React.ReactNode;
+  evalBar?: React.ReactNode;
+  slider?: React.ReactNode;
   controls: React.ReactNode;
 }
 
 export default function GameLayout({
   scorePanel,
   board,
+  evalBar,
   slider,
   controls,
 }: GameLayoutProps) {
@@ -37,13 +39,36 @@ export default function GameLayout({
           sx={{
             flex: 1,
             display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
+            gap: 2,
+            justifyContent: "center",
           }}
         >
-          {board}
-          {slider}
-          {controls}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            {board}
+            {slider}
+            {controls}
+          </Box>
+          {evalBar && (
+            <Box
+              sx={{
+                display: "block",
+                height: {
+                  xs: "350px",
+                  sm: "400px",
+                  md: "400px",
+                  lg: "600px",
+                }
+              }}
+            >
+              {evalBar}
+            </Box>
+          )}
         </Box>
       </Box>
     </Container>

@@ -5,7 +5,7 @@ import { useGameReducer, Puzzle } from "../hooks/useGameReducer";
 import GameLayout from "./GameLayout";
 import ScorePanel from "./ScorePanel";
 import BoardWrapper from "./BoardWrapper";
-import EvaluationSlider from "./EvaluationSlider";
+import InteractiveEvalBar from "./InteractiveEvalBar";
 import BestMoveChallenge from "./BestMoveChallenge";
 import AchievementToast from "./AchievementToast";
 import { Box } from "@mui/material";
@@ -137,6 +137,10 @@ export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu: _
     }
   }, [state.phase, state.moveQuality, fetchRandomPuzzle]);
 
+  const handleEvalChange = (value: number) => {
+    dispatch({ type: 'SLIDER_CHANGE', payload: value });
+  };
+
   // Show best move challenge screen when in that phase
   if (state.phase === 'best-move-challenge') {
     return (
@@ -144,7 +148,7 @@ export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu: _
         <GameLayout
           scorePanel={<ScorePanel state={state} dispatch={dispatch} />}
           board={<BestMoveChallenge state={state} dispatch={dispatch} />}
-          slider={<Box sx={{ minHeight: 100 }} />} // Empty space
+          evalBar={null}
           controls={<Box sx={{ minHeight: 48 }} />}
         />
         <AchievementToast 
@@ -160,8 +164,17 @@ export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu: _
       <GameLayout
         scorePanel={<ScorePanel state={state} dispatch={dispatch} />}
         board={<BoardWrapper state={state} dispatch={dispatch} />}
-        slider={<EvaluationSlider state={state} dispatch={dispatch} onGuess={handleGuess} isBoardModified={state.currentFen !== state.puzzle.FEN} />}
-        controls={<Box sx={{ minHeight: 48, mt: 2 }} />}
+        evalBar={
+          <InteractiveEvalBar
+            value={state.sliderValue}
+            onChange={handleEvalChange}
+            onSubmit={handleGuess}
+            disabled={state.phase !== 'guessing'}
+            showResult={state.phase === 'result'}
+            actualEval={state.phase === 'result' ? state.puzzle.Rating : undefined}
+          />
+        }
+        controls={<Box sx={{ minHeight: 48 }} />}
       />
       <AchievementToast 
         achievements={state.newAchievements} 

@@ -217,33 +217,32 @@ const AnalysisBoard = React.memo(function AnalysisBoard({
     };
   }, [fen, flipped, color, dests, handleAfterMove]);
 
-  // Calculate arrow shapes for hovered line
+  // Calculate arrow shape for hovered line (single best move)
   const arrowShapes = useMemo<DrawShape[]>(() => {
     if (!hoveredLine || !hoveredLine.moves || hoveredLine.moves.length === 0) {
       return [];
     }
 
-    const shapes: DrawShape[] = [];
-    const movesToShow = hoveredLine.moves.slice(0, 3); // Show first 3 moves
-    
-    for (let i = 0; i < movesToShow.length; i++) {
-      const move = movesToShow[i];
-      if (move && move.length >= 4) {
-        const from = move.substring(0, 2) as Key;
-        const to = move.substring(2, 4) as Key;
-        
-        // Validate squares
-        if (/^[a-h][1-8]$/.test(from) && /^[a-h][1-8]$/.test(to)) {
-          shapes.push({
-            orig: from,
-            dest: to,
-            brush: i === 0 ? 'green' : i === 1 ? 'blue' : 'yellow'
-          });
-        }
-      }
+    // Only show the first (best) move
+    const firstMove = hoveredLine.moves[0];
+    if (!firstMove || firstMove.length < 4) {
+      return [];
     }
+
+    const from = firstMove.substring(0, 2) as Key;
+    const to = firstMove.substring(2, 4) as Key;
     
-    return shapes;
+    // Validate squares
+    if (!/^[a-h][1-8]$/.test(from) || !/^[a-h][1-8]$/.test(to)) {
+      return [];
+    }
+
+    // Return single green arrow for best move
+    return [{
+      orig: from,
+      dest: to,
+      brush: 'green'
+    }];
   }, [hoveredLine]); // Memo will handle the comparison
 
   // Update board when dependencies change (but don't recreate)
@@ -371,24 +370,6 @@ const AnalysisBoard = React.memo(function AnalysisBoard({
             }
           }}
         />
-        
-        {/* Flip button */}
-        <IconButton
-          onClick={onFlip}
-          sx={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            color: 'white',
-            '&:hover': {
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            }
-          }}
-          title="Flip board (F)"
-        >
-          <FlipCameraAndroidIcon />
-        </IconButton>
 
         {/* Promotion Dialog */}
         {isPromoting && (
@@ -411,6 +392,24 @@ const AnalysisBoard = React.memo(function AnalysisBoard({
             <Button variant="contained" onClick={() => handlePromotion('n')}>♘</Button>
           </Box>
         )}
+      </Box>
+
+      {/* Board Controls */}
+      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'center' }}>
+        {/* Flip button */}
+        <IconButton
+          onClick={onFlip}
+          sx={{
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            color: 'white',
+            '&:hover': {
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            }
+          }}
+          title="Flip board (F)"
+        >
+          <FlipCameraAndroidIcon />
+        </IconButton>
       </Box>
 
       {/* Navigation Controls */}

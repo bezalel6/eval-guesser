@@ -451,18 +451,6 @@ export default function AnalysisSidebar({
     return evalData.value >= 0 ? `+${pawnValue}` : pawnValue;
   }, []);
 
-  const getEvalBarHeight = useCallback(() => {
-    if (!analysisState.evaluation) return 50;
-    
-    if (analysisState.evaluation.type === 'mate') {
-      return analysisState.evaluation.value > 0 ? 100 : 0;
-    }
-    
-    // Clamp centipawn evaluation between -1000 and +1000
-    const clampedEval = Math.max(-1000, Math.min(1000, analysisState.evaluation.value));
-    // Convert to percentage (50% = 0, 100% = +10, 0% = -10)
-    return 50 + (clampedEval / 20);
-  }, [analysisState.evaluation]);
 
   const toggleAnalysis = useCallback(() => {
     setAnalyzing(!analyzing);
@@ -546,83 +534,61 @@ export default function AnalysisSidebar({
         </Alert>
       )}
 
-      {/* Evaluation Bar and Score */}
-      <Box sx={{ p: 2, display: 'flex', gap: 2 }}>
-        {/* Vertical evaluation bar */}
-        <Box sx={{ 
-          width: 40,
-          height: 200,
-          backgroundColor: '#1a1a1a',
-          position: 'relative',
-          borderRadius: 1,
-          overflow: 'hidden'
-        }}>
-          <Box sx={{
-            position: 'absolute',
-            bottom: 0,
-            width: '100%',
-            height: `${getEvalBarHeight()}%`,
-            backgroundColor: '#ffffff',
-            transition: 'height 0.3s ease'
-          }} />
-        </Box>
-
-        {/* Evaluation details */}
-        <Box sx={{ flex: 1 }}>
-          <Typography 
-            variant="h4" 
+      {/* Analysis Status */}
+      <Box sx={{ p: 2 }}>
+        <Typography 
+          variant="h4" 
+          sx={{ 
+            fontWeight: 'bold', 
+            mb: 1,
+            opacity: analysisState.evaluation?.stale ? 0.5 : 1,
+            transition: 'opacity 0.2s'
+          }}
+        >
+          {analysisState.evaluation ? formatEval(analysisState.evaluation) : '0.00'}
+        </Typography>
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <MemoryIcon 
+            fontSize="small" 
             sx={{ 
-              fontWeight: 'bold', 
-              mb: 1,
-              opacity: analysisState.evaluation?.stale ? 0.5 : 1,
-              transition: 'opacity 0.2s'
+              animation: analysisState.isLoading ? 'pulse 1.5s ease-in-out infinite' : 'none',
+              '@keyframes pulse': {
+                '0%': { opacity: 1 },
+                '50%': { opacity: 0.4 },
+                '100%': { opacity: 1 }
+              }
             }}
-          >
-            {analysisState.evaluation ? formatEval(analysisState.evaluation) : '0.00'}
+          />
+          <Typography variant="body2">
+            {analysisState.isLoading && analysisState.depth === 0 
+              ? 'Starting...' 
+              : `Depth: ${analysisState.depth}/25`}
           </Typography>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <MemoryIcon 
-              fontSize="small" 
-              sx={{ 
-                animation: analysisState.isLoading ? 'pulse 1.5s ease-in-out infinite' : 'none',
-                '@keyframes pulse': {
-                  '0%': { opacity: 1 },
-                  '50%': { opacity: 0.4 },
-                  '100%': { opacity: 1 }
-                }
-              }}
-            />
-            <Typography variant="body2">
-              {analysisState.isLoading && analysisState.depth === 0 
-                ? 'Starting...' 
-                : `Depth: ${analysisState.depth}/25`}
-            </Typography>
-            <IconButton 
-              size="small" 
-              onClick={toggleAnalysis}
-              sx={{ ml: 'auto' }}
-              disabled={!engine || !isInitialized}
-            >
-              {analyzing ? <StopIcon /> : <PlayArrowIcon />}
-            </IconButton>
-          </Box>
-          
-          {analyzing && (
-            <LinearProgress 
-              variant={analysisState.depth === 0 ? "indeterminate" : "determinate"}
-              value={(analysisState.depth / 25) * 100} 
-              sx={{ 
-                mt: 1,
-                height: 2,
-                backgroundColor: '#333',
-                '& .MuiLinearProgress-bar': {
-                  backgroundColor: analysisState.isLoading ? '#81b64c' : '#4caf50'
-                }
-              }}
-            />
-          )}
+          <IconButton 
+            size="small" 
+            onClick={toggleAnalysis}
+            sx={{ ml: 'auto' }}
+            disabled={!engine || !isInitialized}
+          >
+            {analyzing ? <StopIcon /> : <PlayArrowIcon />}
+          </IconButton>
         </Box>
+        
+        {analyzing && (
+          <LinearProgress 
+            variant={analysisState.depth === 0 ? "indeterminate" : "determinate"}
+            value={(analysisState.depth / 25) * 100} 
+            sx={{ 
+              mt: 1,
+              height: 2,
+              backgroundColor: '#333',
+              '& .MuiLinearProgress-bar': {
+                backgroundColor: analysisState.isLoading ? '#81b64c' : '#4caf50'
+              }
+            }}
+          />
+        )}
       </Box>
 
       <Divider sx={{ backgroundColor: '#444' }} />

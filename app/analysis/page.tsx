@@ -6,6 +6,7 @@ import { Box, CircularProgress } from '@mui/material';
 import Header from '../components/Header';
 import AnalysisBoard from '../components/AnalysisBoard';
 import AnalysisSidebar from '../components/AnalysisSidebar';
+import EvalBar from '../components/EvalBar';
 import ErrorBoundary from '../components/ErrorBoundary';
 import AnalysisErrorBoundary from '../components/AnalysisErrorBoundary';
 import { Chess } from 'chess.js';
@@ -185,6 +186,19 @@ function AnalysisContent() {
               onGoToMove={goToMove}
               onReset={reset}
               hoveredLine={hoveredLineIndex !== null ? analysisData.lines[hoveredLineIndex] : null}
+            />
+          </ErrorBoundary>
+        )}
+        evalBar={(
+          <ErrorBoundary
+            enableRetry={true}
+            resetKeys={[String(analysisData.evaluation), String(analysisData.isAnalyzing)]}
+            resetOnPropsChange={true}
+          >
+            <EvalBar
+              evaluation={analysisData.evaluation}
+              height={600}
+              stale={analysisData.isAnalyzing}
             />
           </ErrorBoundary>
         )}
