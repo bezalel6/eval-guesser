@@ -4,7 +4,7 @@
 import React from "react";
 import { Modal, Box, Typography, Button, Fade, Divider, Chip, LinearProgress } from "@mui/material";
 import { GameState, formatEval } from "../hooks/useGameReducer";
-import { motion } from "framer-motion";
+
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import QueryStatsIcon from '@mui/icons-material/QueryStats';
@@ -12,7 +12,6 @@ import { useRouter } from 'next/navigation';
 
 interface ResultsModalProps {
   state: GameState;
-  onNextPuzzle: () => void;
 }
 
 const style = {
@@ -28,8 +27,8 @@ const style = {
   textAlign: 'center',
 };
 
-export default function ResultsModal({ state, onNextPuzzle }: ResultsModalProps) {
-  const { phase, puzzle, userGuess, currentScoreBreakdown, comboMultiplier, moveQuality } = state;
+export default function ResultsModal({ state }: ResultsModalProps) {
+  const { phase, puzzle, userGuess, currentScoreBreakdown, comboMultiplier } = state;
   const open = phase === 'result';
   const router = useRouter();
   
@@ -44,19 +43,13 @@ export default function ResultsModal({ state, onNextPuzzle }: ResultsModalProps)
   };
 
   return (
-    <Modal open={open} closeAfterTransition>
+    <Modal open={open}>
       <Fade in={open}>
         <Box sx={style}>
           {/* Main Feedback with Emoji */}
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", duration: 0.5 }}
-          >
-            <Typography variant="h3" component="h2" gutterBottom sx={{ fontWeight: 'bold' }}>
-              {currentScoreBreakdown.feedbackText}
-            </Typography>
-          </motion.div>
+          <Typography variant="h3" component="h2" gutterBottom sx={{ fontWeight: 'bold' }}>
+            {currentScoreBreakdown.feedbackText}
+          </Typography>
           
           {/* Evaluation Comparison */}
           <Box sx={{ my: 2, p: 2, backgroundColor: 'action.hover', borderRadius: 1 }}>
@@ -119,30 +112,15 @@ export default function ResultsModal({ state, onNextPuzzle }: ResultsModalProps)
                 </Box>
               )}
               
-              {moveQuality && (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2">
-                    Best Move {moveQuality === 'best' ? '✓' : '✗'}
-                  </Typography>
-                  <Typography variant="body2" fontWeight="bold" color={moveQuality === 'best' ? 'success.main' : 'text.secondary'}>
-                    +{currentScoreBreakdown.moveBonus}
-                  </Typography>
-                </Box>
-              )}
+              
               
               <Divider sx={{ my: 1 }} />
               
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography variant="h6">Total</Typography>
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.3, type: "spring" }}
-                >
-                  <Typography variant="h5" fontWeight="bold" color="primary">
+                <Typography variant="h5" fontWeight="bold" color="primary">
                     +{currentScoreBreakdown.totalPoints}
                   </Typography>
-                </motion.div>
               </Box>
             </Box>
           </Box>
@@ -174,19 +152,7 @@ export default function ResultsModal({ state, onNextPuzzle }: ResultsModalProps)
             >
               Analyze
             </Button>
-            <Button 
-              variant="contained" 
-              onClick={onNextPuzzle}
-              size="large"
-              sx={{ 
-                textTransform: 'none', 
-                fontSize: '1.1rem', 
-                py: 1.5,
-                flex: 2
-              }}
-            >
-              Next Puzzle →
-            </Button>
+            
           </Box>
         </Box>
       </Fade>

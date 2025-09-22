@@ -35,6 +35,7 @@ interface AnalysisBoardProps {
     depth: number;
     san?: string[];
   } | null;
+  evalBar?: React.ReactNode;
 }
 
 const AnalysisBoard = React.memo(function AnalysisBoard({
@@ -46,7 +47,8 @@ const AnalysisBoard = React.memo(function AnalysisBoard({
   currentMoveIndex,
   onGoToMove,
   onReset,
-  hoveredLine
+  hoveredLine,
+  evalBar
 }: AnalysisBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
@@ -349,12 +351,18 @@ const AnalysisBoard = React.memo(function AnalysisBoard({
   return (
     <Box sx={{ 
       display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center',
-      gap: 2
+      gap: 2,
+      alignItems: 'flex-start'
     }}>
-      {/* Board Container */}
-      <Box sx={{ position: 'relative' }}>
+      {/* Board and controls */}
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center',
+        gap: 2
+      }}>
+        {/* Board Container */}
+        <Box sx={{ position: 'relative' }}>
         <Box
           ref={boardRef}
           sx={{
@@ -453,6 +461,24 @@ const AnalysisBoard = React.memo(function AnalysisBoard({
           <RestartAltIcon />
         </IconButton>
       </Box>
+    </Box>
+      
+      {/* Eval bar integrated directly */}
+      {evalBar && (
+        <Box sx={{ 
+          display: 'flex',
+          height: '600px',
+          alignSelf: 'center',
+          '@media (max-width: 768px)': {
+            height: '400px'
+          },
+          '@media (max-width: 500px)': {
+            height: '350px'
+          }
+        }}>
+          {evalBar}
+        </Box>
+      )}
     </Box>
   );
 });

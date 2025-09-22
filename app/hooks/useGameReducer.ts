@@ -16,7 +16,7 @@ export interface Puzzle {
   OpeningTags?: string;
 }
 
-export type GamePhase = 'loading' | 'guessing' | 'result' | 'solution-loading' | 'best-move-challenge';
+export type GamePhase = 'loading' | 'guessing' | 'result' | 'solution-loading';
 
 export interface GameState {
   puzzle: Puzzle;
@@ -41,6 +41,7 @@ export interface GameState {
   unlockedAchievementIds: string[];
   newAchievements: Achievement[];
   moveQuality: 'best' | 'good' | 'wrong' | null;
+  
   comboMultiplier: number;
 }
 
@@ -58,9 +59,7 @@ export type GameAction =
   | { type: 'GUESS_SUBMITTED' }
   | { type: 'SHOW_BEST_MOVE' }
   | { type: 'SET_THEME'; payload: string | null }
-  | { type: 'START_BEST_MOVE_CHALLENGE' }
-  | { type: 'SUBMIT_BEST_MOVE'; payload: { from: string; to: string } }
-  | { type: 'SKIP_BEST_MOVE' }
+  
   | { type: 'ACHIEVEMENT_UNLOCKED'; payload: Achievement }
   | { type: 'CLEAR_NEW_ACHIEVEMENTS' };
 
@@ -183,7 +182,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         perfectCount: newPerfectCount,
         totalPuzzles: newTotalPuzzles,
         currentScoreBreakdown: scoreBreakdown,
-        phase: 'best-move-challenge', // Go to best move challenge
+        phase: 'result', // Go to result phase
         comboMultiplier: newComboMultiplier,
         achievements: [...state.achievements, ...newUnlockedAchievements],
         unlockedAchievementIds: allUnlockedIds,
@@ -230,71 +229,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         currentTheme: action.payload,
-      };
-    case 'START_BEST_MOVE_CHALLENGE':
-      return {
-        ...state,
-        phase: 'best-move-challenge',
-        currentFen: state.puzzle.FEN, // Reset to original position
-      };
-    case 'SUBMIT_BEST_MOVE': {
-      // Parse the best move from puzzle
-      const bestMove = state.puzzle.Moves ? state.puzzle.Moves.split(' ')[0] : null;
-      if (!bestMove) {
-        return state;
-      }
-      
-      // Convert UCI notation to from/to
-      const bestFrom = bestMove.substring(0, 2);
-      const bestTo = bestMove.substring(2, 4);
-      
-      // Check if move is correct
-      const isCorrect = action.payload.from === bestFrom && action.payload.to === bestTo;
-      const moveQuality: 'best' | 'good' | 'wrong' = isCorrect ? 'best' : 'wrong';
-      
-      // Recalculate score with move bonus
-      const difference = Math.abs(state.userGuess - state.puzzle.Rating);
-      const updatedScoreBreakdown = calculateTotalScore(
-        difference,
-        state.streak,
-        state.perfectStreak,
-        moveQuality
-      );
-      
-      const additionalPoints = updatedScoreBreakdown.moveBonus;
-      const newBestMoveCount = state.bestMoveCount + (isCorrect ? 1 : 0);
-      const newScore = state.score + additionalPoints;
-      
-      // Check for move-related achievements
-      const achievementStats = {
-        perfectCount: state.perfectCount,
-        streak: state.streak,
-        perfectStreak: state.perfectStreak,
-        bestMoveCount: newBestMoveCount,
-        totalPuzzles: state.totalPuzzles,
-        totalScore: newScore,
-      };
-      
-      const newUnlockedAchievements = checkAchievements(achievementStats, state.unlockedAchievementIds);
-      const allUnlockedIds = [...state.unlockedAchievementIds, ...newUnlockedAchievements.map(a => a.id)];
-      
-      return {
-        ...state,
-        moveQuality,
-        bestMoveCount: newBestMoveCount,
-        score: newScore,
-        currentScoreBreakdown: updatedScoreBreakdown,
-        phase: 'result',
-        achievements: [...state.achievements, ...newUnlockedAchievements],
-        unlockedAchievementIds: allUnlockedIds,
-        newAchievements: [...state.newAchievements, ...newUnlockedAchievements],
-      };
-    }
-    case 'SKIP_BEST_MOVE':
-      return {
-        ...state,
-        phase: 'result',
-        moveQuality: null,
       };
     case 'ACHIEVEMENT_UNLOCKED':
       return {

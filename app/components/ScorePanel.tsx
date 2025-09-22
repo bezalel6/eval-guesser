@@ -45,7 +45,7 @@ export default function ScorePanel({ state, dispatch }: ScorePanelProps) {
   } = state;
   const router = useRouter();
   
-  const showResult = phase === 'result' || phase === 'best-move-challenge';
+  const showResult = phase === 'result';
   const difference = showResult ? Math.abs(userGuess - puzzle.Rating) : 0;
   const isCorrect = difference <= 100;
 

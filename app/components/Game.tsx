@@ -2,11 +2,11 @@
 
 import React, { useEffect } from "react";
 import { useGameReducer, Puzzle } from "../hooks/useGameReducer";
-import GameLayout from "./GameLayout";
+import BoardLayout from "./BoardLayout";
 import ScorePanel from "./ScorePanel";
 import BoardWrapper from "./BoardWrapper";
-import InteractiveEvalBar from "./InteractiveEvalBar";
-import BestMoveChallenge from "./BestMoveChallenge";
+import EvalBar from "./EvalBar";
+
 import AchievementToast from "./AchievementToast";
 import { Box } from "@mui/material";
 import { playSound, getEvalResultSound } from "../lib/global-sounds";
@@ -111,66 +111,36 @@ export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu: _
   // Auto-progress to next puzzle after showing results
   useEffect(() => {
     if (state.phase === 'result') {
-      // Auto-progress to best move challenge or next puzzle after a short delay
+      // Auto-progress to next puzzle after a short delay
       const timer = setTimeout(() => {
-        if (state.puzzle.Moves) {
-          dispatch({ type: 'START_BEST_MOVE_CHALLENGE' });
-        } else {
-          // Skip best move challenge if no moves available
-          fetchRandomPuzzle();
-        }
+        fetchRandomPuzzle();
       }, 2000); // 2 second delay to view results
       
       return () => clearTimeout(timer);
     }
-  }, [state.phase, state.puzzle.Moves, fetchRandomPuzzle, dispatch]);
+  }, [state.phase, fetchRandomPuzzle, dispatch]);
 
-  // Auto-progress from best move challenge
-  useEffect(() => {
-    if (state.phase === 'best-move-challenge' && state.moveQuality !== null) {
-      // After best move attempt, go to next puzzle
-      const timer = setTimeout(() => {
-        fetchRandomPuzzle();
-      }, 1500); // 1.5 second delay
-      
-      return () => clearTimeout(timer);
-    }
-  }, [state.phase, state.moveQuality, fetchRandomPuzzle]);
+  
 
   const handleEvalChange = (value: number) => {
     dispatch({ type: 'SLIDER_CHANGE', payload: value });
   };
 
-  // Show best move challenge screen when in that phase
-  if (state.phase === 'best-move-challenge') {
-    return (
-      <>
-        <GameLayout
-          scorePanel={<ScorePanel state={state} dispatch={dispatch} />}
-          board={<BestMoveChallenge state={state} dispatch={dispatch} />}
-          evalBar={null}
-          controls={<Box sx={{ minHeight: 48 }} />}
-        />
-        <AchievementToast 
-          achievements={state.newAchievements} 
-          onClose={() => dispatch({ type: 'CLEAR_NEW_ACHIEVEMENTS' })}
-        />
-      </>
-    );
-  }
+  
   
   return (
     <>
-      <GameLayout
+      <BoardLayout
+        variant="game"
         scorePanel={<ScorePanel state={state} dispatch={dispatch} />}
         board={<BoardWrapper state={state} dispatch={dispatch} />}
         evalBar={
-          <InteractiveEvalBar
+          <EvalBar
+            mode={state.phase === 'result' ? 'result' : 'interactive'}
             value={state.sliderValue}
             onChange={handleEvalChange}
             onSubmit={handleGuess}
             disabled={state.phase !== 'guessing'}
-            showResult={state.phase === 'result'}
             actualEval={state.phase === 'result' ? state.puzzle.Rating : undefined}
           />
         }

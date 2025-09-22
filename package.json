@@ -28,7 +28,7 @@
     "typescript": "^5.1.0"
   },
   "scripts": {
-    "dev": "portio --mine 3000 && next dev ",
+    "dev": "portio --mine 3000 && next dev --turbo",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
