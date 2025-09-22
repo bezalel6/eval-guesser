@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Box, IconButton, Button, ButtonGroup } from '@mui/material';
 import FlipCameraAndroidIcon from '@mui/icons-material/FlipCameraAndroid';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
@@ -41,28 +41,140 @@ export default function AnalysisBoard({
 }: AnalysisBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
+  const mountedRef = useRef(true);
+  const keyboardListenerRef = useRef<((e: KeyboardEvent) => void) | null>(null);
+  
   const [isPromoting, setIsPromoting] = useState(false);
   const [promotionMove, setPromotionMove] = useState<{from: Key, to: Key} | null>(null);
 
-  // Initialize board
-  useEffect(() => {
-    if (!boardRef.current || apiRef.current) return;
-
-    const chess = new Chess(fen);
-    const color = chess.turn() === 'w' ? 'white' : 'black';
+  // Stable callbacks to prevent closure memory leaks
+  const handleMoveWithSoundRef = useRef<(from: Key, to: Key, promotion?: string) => void>();
+  
+  const handleMoveWithSound = useCallback((from: Key, to: Key, promotion?: string) => {
+    if (!mountedRef.current) return;
     
-    // Calculate legal moves
-    const dests = new Map<Key, Key[]>();
-    const moves = chess.moves({ verbose: true });
-    
-    moves.forEach(move => {
-      const from = move.from as Key;
-      const to = move.to as Key;
-      if (!dests.has(from)) {
-        dests.set(from, []);
+    try {
+      // Try to make the move
+      const success = onMove(from, to, promotion);
+      
+      if (success) {
+        try {
+          // Determine move sound
+          const chess = new Chess(fen);
+          const move = chess.move({
+            from: from as string,
+            to: to as string,
+            promotion: promotion as 'q' | 'r' | 'b' | 'n' | undefined
+          });
+          
+          if (move) {
+            const moveSound = getMoveSound({
+              captured: move.captured !== undefined,
+              castling: move.flags.includes('k') || move.flags.includes('q'),
+              check: chess.inCheck(),
+              promotion: move.flags.includes('p')
+            });
+            playSound(moveSound);
+          }
+        } catch (soundError) {
+          console.warn('Error playing move sound:', soundError);
+          // Move was successful even if sound failed
+        }
+      } else {
+        try {
+          playSound('illegal');
+        } catch (soundError) {
+          console.warn('Error playing illegal move sound:', soundError);
+        }
       }
-      dests.get(from)!.push(to);
-    });
+    } catch (error) {
+      console.error('Error in handleMoveWithSound:', error);
+      // Still try to play illegal sound as fallback
+      try {
+        playSound('illegal');
+      } catch (soundError) {
+        console.warn('Error playing fallback sound:', soundError);
+      }
+    }
+  }, [fen, onMove]);
+
+  // Store the stable callback in ref to prevent closure leaks
+  handleMoveWithSoundRef.current = handleMoveWithSound;
+
+  const handlePromotion = useCallback((piece: string) => {
+    if (!mountedRef.current) return;
+    
+    if (promotionMove && handleMoveWithSoundRef.current) {
+      handleMoveWithSoundRef.current(promotionMove.from, promotionMove.to, piece);
+    }
+    setIsPromoting(false);
+    setPromotionMove(null);
+  }, [promotionMove]);
+
+  // Memoized legal moves calculation
+  const { dests, color, inCheck } = useMemo(() => {
+    try {
+      const chess = new Chess(fen);
+      const color = chess.turn() === 'w' ? 'white' : 'black';
+      const inCheck = chess.inCheck();
+      
+      // Calculate legal moves
+      const dests = new Map<Key, Key[]>();
+      const moves = chess.moves({ verbose: true });
+      
+      moves.forEach(move => {
+        const from = move.from as Key;
+        const to = move.to as Key;
+        if (!dests.has(from)) {
+          dests.set(from, []);
+        }
+        dests.get(from)!.push(to);
+      });
+
+      return { dests, color, inCheck };
+    } catch (error) {
+      console.error('Error calculating legal moves:', error);
+      // Return safe defaults to prevent component crash
+      return { 
+        dests: new Map<Key, Key[]>(), 
+        color: 'white' as const, 
+        inCheck: false 
+      };
+    }
+  }, [fen]);
+
+  // Stable move handler to prevent event listener re-registration
+  const handleAfterMove = useCallback((orig: Key, dest: Key) => {
+    if (!mountedRef.current) return;
+    
+    try {
+      // Check if this is a promotion
+      const chess = new Chess(fen);
+      const piece = chess.get(orig as Square);
+      const destRank = dest[1];
+      
+      if (piece?.type === 'p' && 
+          ((piece.color === 'w' && destRank === '8') || 
+           (piece.color === 'b' && destRank === '1'))) {
+        // Show promotion dialog
+        setIsPromoting(true);
+        setPromotionMove({ from: orig, to: dest });
+      } else if (handleMoveWithSoundRef.current) {
+        // Regular move
+        handleMoveWithSoundRef.current(orig, dest);
+      }
+    } catch (error) {
+      console.error('Error handling move:', error);
+      // Try to proceed with regular move anyway
+      if (handleMoveWithSoundRef.current) {
+        handleMoveWithSoundRef.current(orig, dest);
+      }
+    }
+  }, [fen]);
+
+  // Initialize board once
+  useEffect(() => {
+    if (!boardRef.current || apiRef.current || !mountedRef.current) return;
 
     const config: Config = {
       fen,
@@ -74,23 +186,7 @@ export default function AnalysisBoard({
         dests,
         showDests: true,
         events: {
-          after: (orig: Key, dest: Key) => {
-            // Check if this is a promotion
-            const chess = new Chess(fen);
-            const piece = chess.get(orig as Square);
-            const destRank = dest[1];
-            
-            if (piece?.type === 'p' && 
-                ((piece.color === 'w' && destRank === '8') || 
-                 (piece.color === 'b' && destRank === '1'))) {
-              // Show promotion dialog
-              setIsPromoting(true);
-              setPromotionMove({ from: orig, to: dest });
-            } else {
-              // Regular move
-              handleMoveWithSound(orig, dest);
-            }
-          }
+          after: handleAfterMove
         }
       },
       premovable: {
@@ -103,11 +199,6 @@ export default function AnalysisBoard({
       },
       selectable: {
         enabled: true,
-      },
-      events: {
-        move: (_orig: Key, _dest: Key) => {
-          // Already handled in after event
-        }
       },
       animation: {
         enabled: true,
@@ -124,35 +215,17 @@ export default function AnalysisBoard({
     apiRef.current = Chessground(boardRef.current, config);
 
     return () => {
-      apiRef.current?.destroy();
+      if (apiRef.current && mountedRef.current) {
+        apiRef.current.destroy();
+      }
       apiRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only initialize once
+  }, [fen, flipped, color, dests, handleAfterMove]);
 
-  // Update board when FEN or orientation changes
+  // Update board when dependencies change (but don't recreate)
   useEffect(() => {
-    if (!apiRef.current) return;
+    if (!apiRef.current || !mountedRef.current) return;
 
-    const chess = new Chess(fen);
-    const color = chess.turn() === 'w' ? 'white' : 'black';
-    
-    // Calculate legal moves
-    const dests = new Map<Key, Key[]>();
-    const moves = chess.moves({ verbose: true });
-    
-    moves.forEach(move => {
-      const from = move.from as Key;
-      const to = move.to as Key;
-      if (!dests.has(from)) {
-        dests.set(from, []);
-      }
-      dests.get(from)!.push(to);
-    });
-
-    // Check for check
-    const inCheck = chess.inCheck();
-    
     apiRef.current.set({
       fen,
       turnColor: color,
@@ -161,76 +234,81 @@ export default function AnalysisBoard({
       movable: {
         color: 'both',
         dests,
-        showDests: true
+        showDests: true,
+        events: {
+          after: handleAfterMove
+        }
       }
     });
-  }, [fen, flipped]);
+  }, [fen, flipped, color, dests, inCheck, handleAfterMove]);
 
-  const handleMoveWithSound = (from: Key, to: Key, promotion?: string) => {
-    // Try to make the move
-    const success = onMove(from, to, promotion);
+  // Stable keyboard event handler to prevent listener leaks
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!mountedRef.current) return;
     
-    if (success) {
-      // Determine move sound
-      const chess = new Chess(fen);
-      const move = chess.move({
-        from: from as string,
-        to: to as string,
-        promotion: promotion as 'q' | 'r' | 'b' | 'n' | undefined
-      });
-      
-      if (move) {
-        const moveSound = getMoveSound({
-          captured: move.captured !== undefined,
-          castling: move.flags.includes('k') || move.flags.includes('q'),
-          check: chess.inCheck(),
-          promotion: move.flags.includes('p')
-        });
-        playSound(moveSound);
-      }
-    } else {
-      playSound('illegal');
+    switch(e.key) {
+      case 'ArrowLeft':
+        e.preventDefault();
+        onGoToMove(Math.max(0, currentMoveIndex - 1));
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        onGoToMove(Math.min(moveHistory.length, currentMoveIndex + 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        onGoToMove(0);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        onGoToMove(moveHistory.length);
+        break;
+      case 'f':
+        e.preventDefault();
+        onFlip();
+        break;
     }
-  };
+  }, [currentMoveIndex, moveHistory.length, onGoToMove, onFlip]);
 
-  const handlePromotion = (piece: string) => {
-    if (promotionMove) {
-      handleMoveWithSound(promotionMove.from, promotionMove.to, piece);
-    }
-    setIsPromoting(false);
-    setPromotionMove(null);
-  };
-
-  // Keyboard navigation
+  // Keyboard navigation with proper cleanup and single listener
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      switch(e.key) {
-        case 'ArrowLeft':
-          e.preventDefault();
-          onGoToMove(Math.max(0, currentMoveIndex - 1));
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          onGoToMove(Math.min(moveHistory.length, currentMoveIndex + 1));
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          onGoToMove(0);
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          onGoToMove(moveHistory.length);
-          break;
-        case 'f':
-          e.preventDefault();
-          onFlip();
-          break;
+    // Remove existing listener if any
+    if (keyboardListenerRef.current) {
+      window.removeEventListener('keydown', keyboardListenerRef.current);
+    }
+    
+    // Store current handler
+    keyboardListenerRef.current = handleKeyDown;
+    
+    // Add new listener
+    window.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      if (keyboardListenerRef.current) {
+        window.removeEventListener('keydown', keyboardListenerRef.current);
+        keyboardListenerRef.current = null;
       }
     };
+  }, [handleKeyDown]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentMoveIndex, moveHistory.length, onGoToMove, onFlip]);
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      
+      // Cleanup keyboard listener
+      if (keyboardListenerRef.current) {
+        window.removeEventListener('keydown', keyboardListenerRef.current);
+        keyboardListenerRef.current = null;
+      }
+      
+      // Cleanup chessground
+      if (apiRef.current) {
+        apiRef.current.destroy();
+        apiRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <Box sx={{ 
