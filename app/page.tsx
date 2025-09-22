@@ -4,7 +4,8 @@ import AppRouter from "@/app/components/AppRouter";
 
 export default async function Page() {
   const puzzleService = PuzzleService.getInstance();
-  const puzzle = await puzzleService.getRandomPuzzle();
+  // Include solution so we have Moves field
+  const puzzle = await puzzleService.getRandomPuzzle({ includeSolution: true });
 
   if (!puzzle || !puzzle.PuzzleId || !puzzle.FEN || puzzle.Rating === undefined || !puzzle.Moves) {
     return <div>Failed to load puzzle. Please try refreshing the page.</div>;
