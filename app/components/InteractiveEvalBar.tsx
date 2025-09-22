@@ -28,14 +28,6 @@ export default function InteractiveEvalBar({
   const [isDragging, setIsDragging] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (disabled) return;
-    e.preventDefault();
-    setIsDragging(true);
-    setHasInteracted(true);
-    updateValueFromPosition(e.clientY);
-  }, [disabled]);
-
   const updateValueFromPosition = useCallback((clientY: number) => {
     if (!barRef.current || disabled) return;
     
@@ -49,6 +41,14 @@ export default function InteractiveEvalBar({
     
     onChange(clampedValue);
   }, [disabled, onChange]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (disabled) return;
+    e.preventDefault();
+    setIsDragging(true);
+    setHasInteracted(true);
+    updateValueFromPosition(e.clientY);
+  }, [disabled, updateValueFromPosition]);
 
   useEffect(() => {
     if (!isDragging) return;

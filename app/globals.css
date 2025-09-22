@@ -1,3 +1,6 @@
+/* Tailwind CSS v4 configuration and imports */
+@import "tailwindcss";
+
 /* Import Chessground styles */
 @import 'chessground/assets/chessground.base.css';
 @import 'chessground/assets/chessground.brown.css';

@@ -39,36 +39,50 @@ export default function GameLayout({
           sx={{
             flex: 1,
             display: "flex",
-            gap: 2,
             justifyContent: "center",
+            alignItems: "flex-start",
           }}
         >
+          {/* Main game area - board and eval bar together */}
           <Box
             sx={{
               display: "flex",
-              flexDirection: "column",
+              flexDirection: "row",
               alignItems: "center",
+              gap: 3,
             }}
           >
-            {board}
-            {slider}
-            {controls}
-          </Box>
-          {evalBar && (
+            {/* Board and controls */}
             <Box
               sx={{
-                display: "block",
-                height: {
-                  xs: "350px",
-                  sm: "400px",
-                  md: "400px",
-                  lg: "600px",
-                }
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
               }}
             >
-              {evalBar}
+              {board}
+              {slider}
+              {controls}
             </Box>
-          )}
+            
+            {/* Eval bar - part of the layout */}
+            {evalBar && (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignSelf: "stretch",
+                  minHeight: {
+                    xs: "350px",
+                    sm: "400px",
+                    md: "450px",
+                    lg: "500px",
+                  },
+                }}
+              >
+                {evalBar}
+              </Box>
+            )}
+          </Box>
         </Box>
       </Box>
     </Container>
