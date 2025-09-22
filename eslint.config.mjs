@@ -19,7 +19,9 @@ export default [
       'dist/**',
       'coverage/**',
       '*.config.js',
-      '*.config.mjs'
+      '*.config.mjs',
+      'public/stockfish.js',
+      'public/*.wasm.js'
     ]
   },
   

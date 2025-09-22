@@ -15,7 +15,7 @@ import type { Key } from 'chessground/types';
 import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
-import { Chess } from 'chess.js';
+import { Chess, Square } from 'chess.js';
 import { playSound, getMoveSound } from '../lib/global-sounds';
 
 interface AnalysisBoardProps {
@@ -77,7 +77,7 @@ export default function AnalysisBoard({
           after: (orig: Key, dest: Key) => {
             // Check if this is a promotion
             const chess = new Chess(fen);
-            const piece = chess.get(orig as any);
+            const piece = chess.get(orig as Square);
             const destRank = dest[1];
             
             if (piece?.type === 'p' && 

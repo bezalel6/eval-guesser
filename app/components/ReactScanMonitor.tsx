@@ -14,14 +14,7 @@ export default function ReactScanMonitor() {
             showToolbar: true, // Shows the floating toolbar
             includeChildren: true,
             playSound: false, // Set to true to hear sound on re-renders
-            onRender: (fiber: any, render: any) => {
-              // Custom callback for each render if needed
-              // You can log specific component re-renders here
-              if (render.count > 10) {
-                console.warn(`Component ${fiber.type?.name || 'Unknown'} re-rendered ${render.count} times`)
-              }
-            }
-          } as any)
+          } as Parameters<typeof scan>[0])
         } catch (error) {
           console.error('Failed to load react-scan:', error)
         }

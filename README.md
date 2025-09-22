@@ -1,46 +1,208 @@
-# Getting Started with Create React App
+# Eval Guesser - Chess Position Evaluation Training
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A chess training application that helps players improve their positional understanding by guessing computer evaluations of chess positions. Built with Next.js 15, React 19, and TypeScript.
 
-## Available Scripts
+## 🎮 Features
 
-In the project directory, you can run:
+### Game Modes
 
-### `npm start`
+#### Classic Mode
+- Guess the exact evaluation of chess positions
+- Use an interactive slider to input your evaluation
+- Get scored based on accuracy
+- Track streaks and achievements
+- Auto-orientation to the side to move
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+#### Analysis Board
+- Full-featured chess analysis with Stockfish engine
+- Real-time position evaluation
+- Top 3 engine variations displayed
+- Interactive board with complete move freedom
+- Move history navigation
+- Keyboard shortcuts for navigation
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+### Core Features
 
-### `npm test`
+- **🎯 Evaluation Training**: Practice evaluating chess positions and compare with Stockfish's assessment
+- **🏆 Scoring System**: 
+  - Base points for accuracy (max 1000 per puzzle)
+  - Streak bonuses and combo multipliers
+  - Perfect guess bonuses
+  - Best move challenges for extra points
+- **🔊 Sound Effects**: Chess.com audio effects for moves and game events
+- **📊 Statistics**: Track your progress, best scores, and achievements
+- **🎨 Modern UI**: Dark theme with Material-UI components
+- **⚡ Fast Performance**: Turbopack-powered development, optimized React rendering
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## 🚀 Getting Started
 
-### `npm run build`
+### Prerequisites
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- Node.js 18+ 
+- npm or yarn
+- SQLite3
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Installation
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+1. Clone the repository:
+```bash
+git clone https://github.com/bezalel6/eval-guesser.git
+cd eval-guesser
+```
 
-### `npm run eject`
+2. Install dependencies:
+```bash
+npm install
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+3. Set up the database:
+```bash
+# Generate Prisma client
+npx prisma generate
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+# Run migrations
+npx prisma migrate dev
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+# Import puzzle database (if you have a CSV file)
+node scripts/import-puzzles.js puzzles.csv
+```
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+4. Start the development server:
+```bash
+npm run dev
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000) to play!
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 📝 Available Scripts
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+- `npm run dev` - Start development server with Turbopack
+- `npm run build` - Build for production
+- `npm start` - Run production server
+- `npm run lint` - Run ESLint
+- `npx prisma studio` - Open database GUI
+
+## 🏗️ Architecture
+
+### Tech Stack
+- **Framework**: Next.js 15 with App Router
+- **Language**: TypeScript
+- **UI**: Material-UI (MUI) v7
+- **Chess Board**: Chessground (lichess board library)
+- **Chess Logic**: chess.js
+- **Database**: SQLite with Prisma ORM
+- **Chess Engine**: Stockfish.js (WASM)
+- **Styling**: CSS-in-JS with emotion
+- **Sound**: Custom sound system with Chess.com audio
+
+### Project Structure
+
+```
+eval-guesser/
+├── app/
+│   ├── components/       # React components
+│   │   ├── Game.tsx      # Main game component
+│   │   ├── ChessgroundBoard.tsx  # Board wrapper
+│   │   ├── AnalysisBoard.tsx     # Analysis mode board
+│   │   ├── AnalysisSidebar.tsx   # Engine evaluation display
+│   │   └── ...
+│   ├── hooks/           # Custom React hooks
+│   │   ├── useGameReducer.ts    # Game state management
+│   │   └── useGlobalSound.ts    # Sound system hook
+│   ├── lib/             # Utility libraries
+│   │   ├── global-sounds.ts     # Sound management system
+│   │   └── stockfish-engine.ts  # Chess engine wrapper
+│   ├── api/             # API routes
+│   └── analysis/        # Analysis page
+├── prisma/
+│   └── schema.prisma    # Database schema
+├── public/
+│   ├── stockfish.js     # Stockfish WASM worker
+│   └── stockfish.wasm   # Stockfish WASM binary
+└── scripts/
+    └── import-puzzles.js # Puzzle import script
+```
+
+## 🎮 How to Play
+
+### Classic Mode
+1. Look at the chess position presented
+2. Evaluate who is better (White or Black) and by how much
+3. Use the slider to input your evaluation (-20 to +20 pawns)
+4. Submit your guess
+5. See how close you were to the computer evaluation
+6. Try to find the best move in the position for bonus points
+7. Continue to build your streak!
+
+### Analysis Board
+1. Click "Analysis Board" from the main menu
+2. Make moves freely on the board
+3. View real-time engine evaluation in the sidebar
+4. See the top 3 recommended moves
+5. Navigate through move history
+6. Use keyboard shortcuts:
+   - ← → : Navigate moves
+   - ↑ ↓ : Jump to start/end
+   - F : Flip board
+
+## 🎵 Sound System
+
+The app features a comprehensive sound system using Chess.com's audio effects:
+- Move sounds (regular, capture, castle, check, promotion)
+- Game events (start, correct/incorrect evaluation)
+- UI interactions
+- Volume controls and mute toggle in the header
+
+## 🏆 Scoring System
+
+### Base Score Calculation
+- Maximum 1000 points for perfect accuracy
+- Points decrease based on evaluation difference
+- Minimum 0 points for large errors
+
+### Bonuses
+- **Streak Bonus**: Consecutive correct guesses
+- **Perfect Bonus**: Exact evaluation match
+- **Combo Multiplier**: Build up with consecutive wins
+- **Best Move Bonus**: Find the engine's best move
+
+### Achievements
+- Unlock achievements for milestones
+- Track perfect streaks
+- Puzzle count achievements
+
+## 🔧 Configuration
+
+### Environment Variables
+Create a `.env.local` file:
+```
+DATABASE_URL="file:./puzzles.db"
+```
+
+### CLAUDE.md
+The project includes a CLAUDE.md file with specific instructions for AI assistants working with the codebase.
+
+## 📚 API Routes
+
+- `/api/puzzles/random` - Get a random puzzle
+- `/api/puzzles/[id]` - Get specific puzzle
+- `/api/puzzles/[id]/solution` - Get puzzle solution
+- `/api/puzzles/by-theme` - Get puzzles by theme
+- `/api/puzzles/by-rating` - Get puzzles by rating range
+- `/api/puzzles/stats` - Get puzzle statistics
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is open source and available under the MIT License.
+
+## 🙏 Acknowledgments
+
+- Chess positions from Lichess puzzle database
+- Board rendering by Chessground (Lichess)
+- Sound effects from Chess.com
+- Chess engine powered by Stockfish
+- UI components from Material-UI

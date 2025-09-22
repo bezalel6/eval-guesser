@@ -18,7 +18,7 @@ interface GameProps {
 }
 
 
-export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu }: GameProps) {
+export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu: _onBackToMenu }: GameProps) {
   const { state, dispatch } = useGameReducer(initialPuzzle);
 
   const fetchSolution = async () => {

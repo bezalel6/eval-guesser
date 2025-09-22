@@ -12,16 +12,13 @@ interface EvaluationSliderProps {
   isBoardModified: boolean;
 }
 
-export default function EvaluationSlider({ state, dispatch, onGuess, isBoardModified }: EvaluationSliderProps) {
+export default function EvaluationSlider({ state, dispatch, onGuess, isBoardModified: _isBoardModified }: EvaluationSliderProps) {
   const { sliderValue, hasInteractedWithEval, phase } = state;
 
   const handleRangeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     dispatch({ type: 'SLIDER_CHANGE', payload: parseInt(event.target.value, 10) });
   };
 
-  const handleSubmit = () => {
-    dispatch({ type: 'GUESS_SUBMITTED' });
-  };
 
   return (
     <Box sx={{ width: '100%', maxWidth: '600px', px: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>

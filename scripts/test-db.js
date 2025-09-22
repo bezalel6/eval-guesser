@@ -27,14 +27,14 @@ async function testDatabase() {
     console.log('\nTesting query performance...');
     
     const start1 = Date.now();
-    const popularPuzzles = await prisma.puzzles.findMany({
+    await prisma.puzzles.findMany({
       take: 10,
       orderBy: { Popularity: 'desc' }
     });
     console.log(`Popular puzzles query: ${Date.now() - start1}ms`);
     
     const start2 = Date.now();
-    const ratingRange = await prisma.puzzles.findMany({
+    await prisma.puzzles.findMany({
       where: {
         Rating: { gte: 1500, lte: 1600 }
       },

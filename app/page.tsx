@@ -6,11 +6,21 @@ export default async function Page() {
   const puzzleService = PuzzleService.getInstance();
   const puzzle = await puzzleService.getRandomPuzzle();
 
-  if (!puzzle || !puzzle.PuzzleId || !puzzle.FEN || puzzle.Rating === undefined) {
+  if (!puzzle || !puzzle.PuzzleId || !puzzle.FEN || puzzle.Rating === undefined || !puzzle.Moves) {
     return <div>Failed to load puzzle. Please try refreshing the page.</div>;
   }
 
-  return <AppRouter initialPuzzle={puzzle as any} />;
+  // Type assertion is safe after validation above
+  const validPuzzle = {
+    PuzzleId: puzzle.PuzzleId,
+    FEN: puzzle.FEN,
+    Moves: puzzle.Moves,
+    Rating: puzzle.Rating,
+    Themes: puzzle.Themes,
+    OpeningTags: puzzle.OpeningTags
+  };
+
+  return <AppRouter initialPuzzle={validPuzzle} />;
 }
 
 // Force dynamic rendering to ensure a new puzzle is fetched on each visit

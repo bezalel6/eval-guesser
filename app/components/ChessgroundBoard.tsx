@@ -186,9 +186,14 @@ export default function ChessgroundBoard({
   // Expose methods via ref if needed
   useEffect(() => {
     if (boardRef.current) {
-      (boardRef.current as any).makeMove = makeMove;
-      (boardRef.current as any).getFen = getFen;
-      (boardRef.current as any).api = apiRef.current;
+      const board = boardRef.current as HTMLDivElement & {
+        makeMove?: typeof makeMove;
+        getFen?: typeof getFen;
+        api?: typeof apiRef.current;
+      };
+      board.makeMove = makeMove;
+      board.getFen = getFen;
+      board.api = apiRef.current;
     }
   }, [makeMove, getFen]);
 
