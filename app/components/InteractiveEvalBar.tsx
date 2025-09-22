@@ -101,19 +101,29 @@ export default function InteractiveEvalBar({
       display: 'flex', 
       flexDirection: 'column', 
       alignItems: 'center',
-      gap: 1
+      gap: 1,
+      height: '100%',
+      minWidth: 120
     }}>
       {/* Current evaluation display */}
-      <Box sx={{ minHeight: '32px', textAlign: 'center' }}>
+      <Box sx={{ 
+        minHeight: '64px', 
+        textAlign: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        gap: 0.5
+      }}>
         {hasInteracted && (
           <Typography 
             variant="h6" 
             sx={{ 
               fontWeight: 'bold',
-              color: showResult ? 'text.secondary' : 'primary.main'
+              color: showResult ? 'text.secondary' : 'primary.main',
+              whiteSpace: 'nowrap'
             }}
           >
-            {showResult ? 'Your guess: ' : ''}{evalText}
+            {showResult ? 'Your: ' : ''}{evalText}
           </Typography>
         )}
         {showResult && actualText && (
@@ -121,7 +131,8 @@ export default function InteractiveEvalBar({
             variant="h6" 
             sx={{ 
               fontWeight: 'bold',
-              color: 'success.main'
+              color: 'success.main',
+              whiteSpace: 'nowrap'
             }}
           >
             Actual: {actualText}
@@ -135,7 +146,9 @@ export default function InteractiveEvalBar({
         onMouseDown={handleMouseDown}
         sx={{ 
           width,
-          height,
+          flex: 1,
+          minHeight: 400,
+          maxHeight: height,
           backgroundColor: '#1a1a1a',
           position: 'relative',
           borderRadius: 1,
