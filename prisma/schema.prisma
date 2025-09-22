@@ -7,6 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Existing puzzles table
 model puzzles {
   PuzzleId        String  @id
   FEN             String?
@@ -22,4 +23,123 @@ model puzzles {
   @@index([Popularity], map: "idx_popularity")
   @@index([Themes], map: "idx_themes")
   @@index([Rating], map: "idx_rating")
+}
+
+// NextAuth models for authentication
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  
+  // Game-specific fields
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  rushSessions  RushSession[]
+  
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// Puzzle Rush specific models (Chess.com style)
+model RushSession {
+  id              String           @id @default(cuid())
+  userId          String
+  mode            RushMode         // THREE_MINUTE, FIVE_MINUTE, SURVIVAL
+  score           Int              // Number of puzzles solved
+  strikes         Int              @default(0) // Wrong answers (max 3)
+  startedAt       DateTime         @default(now())
+  endedAt         DateTime?
+  isActive        Boolean          @default(true)
+  timeSpent       Int?             // Milliseconds
+  
+  // Relations
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempts        RushAttempt[]
+  
+  @@index([userId])
+  @@index([mode])
+  @@index([score])
+  @@map("rush_sessions")
+}
+
+model RushAttempt {
+  id              String           @id @default(cuid())
+  sessionId       String
+  puzzleId        String
+  userGuess       Int              // User's evaluation guess in centipawns
+  actualEval      Int              // Actual evaluation
+  isCorrect       Boolean
+  attemptOrder    Int              // Order in the session (1st, 2nd, etc.)
+  timeSpent       Int?             // Milliseconds spent on this puzzle
+  createdAt       DateTime         @default(now())
+  
+  // Relations
+  session         RushSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  @@index([sessionId])
+  @@map("rush_attempts")
+}
+
+// Leaderboard cache for performance
+model Leaderboard {
+  id              String           @id @default(cuid())
+  userId          String
+  mode            RushMode
+  bestScore       Int
+  bestSessionId   String
+  achievedAt      DateTime
+  rank            Int?
+  
+  @@unique([userId, mode])
+  @@index([mode, bestScore])
+  @@map("leaderboards")
+}
+
+enum RushMode {
+  FIVE_MINUTE
+  SURVIVAL
 }

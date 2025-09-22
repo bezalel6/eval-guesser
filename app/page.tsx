@@ -1,45 +1,115 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Container } from "@mui/material";
-import Homepage from "@/app/components/Homepage";
-import Header from "@/app/components/Header";
+import React, { useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { 
+  Container, 
+  Paper, 
+  Typography, 
+  Button, 
+  Box,
+  CircularProgress
+} from "@mui/material";
+import LoginIcon from '@mui/icons-material/Login';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import Header from "@/app/components/Header";
 
 export default function Page() {
+  const { data: session, status } = useSession();
   const router = useRouter();
-  const [classicHighScore, setClassicHighScore] = useState(0);
-  const [quickThinkHighScore, setQuickThinkHighScore] = useState(0);
 
-  // Load high scores on mount
   useEffect(() => {
-    const savedClassicScore = localStorage.getItem('classicHighScore');
-    if (savedClassicScore) setClassicHighScore(parseInt(savedClassicScore));
-    
-    const savedQuickScore = localStorage.getItem('quickThinkHighScore');
-    if (savedQuickScore) setQuickThinkHighScore(parseInt(savedQuickScore));
-  }, []);
+    // If authenticated, redirect to dashboard
+    if (status === "authenticated") {
+      router.push("/dashboard");
+    }
+  }, [status, router]);
 
-  const handleClassicPlay = () => {
-    // Lichess-style route - go to /streak to start new streak
-    router.push('/streak');
-  };
-
-  const handleQuickThinkPlay = () => {
-    // TODO: Implement quick think mode route when ready
-    console.log('Quick Think mode coming soon!');
-  };
+  if (status === "loading") {
+    return (
+      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
 
   return (
     <>
-      <Header />
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Homepage
-          onClassicPlay={handleClassicPlay}
-          onQuickThinkPlay={handleQuickThinkPlay} 
-          classicBestScore={classicHighScore}
-          quickThinkBestScore={quickThinkHighScore}
-        />
+      <Header title="Eval Rush" />
+      <Container maxWidth="md" sx={{ mt: 8 }}>
+        <Paper elevation={3} sx={{ p: 6, textAlign: 'center' }}>
+          <Typography 
+            variant="h2" 
+            gutterBottom
+            sx={{
+              background: "linear-gradient(135deg, #81b64c 0%, #9bc767 100%)",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              fontWeight: 300,
+              mb: 3
+            }}
+          >
+            Eval Rush
+          </Typography>
+          
+          <Typography variant="h5" color="text.secondary" sx={{ mb: 4 }}>
+            Master Chess Position Evaluation
+          </Typography>
+          
+          <Typography variant="body1" sx={{ mb: 6, maxWidth: 500, mx: 'auto' }}>
+            Test your chess evaluation skills in a fast-paced puzzle rush format. 
+            Guess the computer evaluation of positions and see how many you can solve!
+          </Typography>
+
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<LoginIcon />}
+              onClick={() => router.push("/auth/signin")}
+              sx={{ minWidth: 200 }}
+            >
+              Sign In to Play
+            </Button>
+            
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => router.push("/analysis")}
+              sx={{ minWidth: 200 }}
+            >
+              Try Analysis Board
+            </Button>
+          </Box>
+          
+          <Box sx={{ mt: 6, pt: 4, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="h6" gutterBottom>
+              Game Modes
+            </Typography>
+            
+            <Box sx={{ display: 'flex', gap: 4, justifyContent: 'center', mt: 3 }}>
+              <Box>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  5-Minute Rush
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Solve as many puzzles as you can in 5 minutes
+                </Typography>
+              </Box>
+              
+              <Box>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Survival Mode
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  No time limit - one mistake ends your run
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        </Paper>
       </Container>
     </>
   );

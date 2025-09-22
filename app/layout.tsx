@@ -6,10 +6,11 @@ import EmotionCacheProvider from "./emotion";
 import theme from "./theme";
 import "./globals.css";
 import { StockfishProvider } from "./lib/stockfish-engine";
+import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: "Eval Guesser",
-  description: "Guess the chess position evaluation",
+  title: "Eval Rush",
+  description: "Master chess position evaluation in a fast-paced puzzle rush",
 };
 
 export default function RootLayout({
@@ -20,14 +21,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <EmotionCacheProvider>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <StockfishProvider>
-              <main>{children}</main>
-            </StockfishProvider>
-          </ThemeProvider>
-        </EmotionCacheProvider>
+        <Providers>
+          <EmotionCacheProvider>
+            <ThemeProvider theme={theme}>
+              <CssBaseline />
+              <StockfishProvider>
+                <main>{children}</main>
+              </StockfishProvider>
+            </ThemeProvider>
+          </EmotionCacheProvider>
+        </Providers>
       </body>
     </html>
   );
