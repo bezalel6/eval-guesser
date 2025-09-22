@@ -309,7 +309,8 @@ export default function AnalysisSidebar({
 
   // Convert engine lines to AnalysisLine format with memoization
   const convertedLines = useMemo(() => {
-    if (!fen || analysisState.engineLines.size === 0) {
+    // Only process if we have current data and it matches current FEN
+    if (!fen || analysisState.engineLines.size === 0 || currentFenRef.current !== fen) {
       return [];
     }
 
@@ -332,7 +333,7 @@ export default function AnalysisSidebar({
               try {
                 // Validate move format
                 if (move.length < 4) {
-                  console.warn('Invalid move format:', move);
+                  // Silently skip short moves
                   break;
                 }
 
@@ -342,7 +343,7 @@ export default function AnalysisSidebar({
 
                 // Validate squares
                 if (!/^[a-h][1-8]$/.test(from) || !/^[a-h][1-8]$/.test(to)) {
-                  console.warn('Invalid square format:', from, to);
+                  // Silently skip invalid squares
                   break;
                 }
                 
@@ -355,11 +356,11 @@ export default function AnalysisSidebar({
                 if (chessMove) {
                   san.push(chessMove.san);
                 } else {
-                  console.warn('Invalid move:', move);
+                  // Silently skip invalid moves - this happens when engine sends moves for wrong position
                   break;
                 }
               } catch (moveError) {
-                console.warn('Error processing move:', move, moveError);
+                // Silently skip - this happens during position transitions
                 break;
               }
             }
@@ -367,7 +368,7 @@ export default function AnalysisSidebar({
             if (san.length > 0) {
               // Validate score data
               if (typeof info.score.value !== 'number') {
-                console.warn('Invalid score value:', info.score.value);
+                // Silently skip invalid score data
                 continue;
               }
 
@@ -385,8 +386,8 @@ export default function AnalysisSidebar({
               });
             }
           } catch (lineError) {
-            console.warn('Error processing analysis line:', i, lineError);
-            continue; // Skip this line but continue with others
+            // Silently skip this line but continue with others
+            continue;
           }
         }
       }
