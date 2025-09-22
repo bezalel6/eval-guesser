@@ -3,10 +3,13 @@ import PuzzleService from '../../../lib/puzzle-service';
 
 const puzzleService = PuzzleService.getInstance();
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // By default, getRandomPuzzle now excludes the solution
-    const puzzle = await puzzleService.getRandomPuzzle();
+    // Check if we need to include the solution
+    const { searchParams } = new URL(request.url);
+    const includeSolution = searchParams.get('includeSolution') === 'true';
+    
+    const puzzle = await puzzleService.getRandomPuzzle({ includeSolution });
     
     if (!puzzle) {
       return NextResponse.json(

@@ -85,9 +85,16 @@ export default function ChessgroundBoard({
   showControls = true,
   boardSize = { width: "100%", height: "100%" },
 }: ChessgroundBoardProps) {
-  const boardRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
   const chessRef = useRef<Chess>(new Chess());
+  const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
+  
+  // Callback ref to track when DOM element is ready
+  const boardRef = useCallback((node: HTMLDivElement | null) => {
+    if (node !== null && node !== boardElement) {
+      setBoardElement(node);
+    }
+  }, [boardElement]);
   const mountedRef = useRef(true);
   const keyboardListenerRef = useRef<((e: KeyboardEvent) => void) | null>(null);
   
@@ -195,36 +202,11 @@ export default function ChessgroundBoard({
     setPromotionMove(null);
   }, [promotionMove, onMove, fen, analysisMode]);
 
-  // Handle move after for analysis mode (with promotion detection)
-  const handleAfterMove = useCallback((orig: Key, dest: Key) => {
-    if (!mountedRef.current) return;
-    
-    if (analysisMode) {
-      try {
-        // Check if this is a promotion
-        const chess = new Chess(fen);
-        const piece = chess.get(orig as Square);
-        const destRank = dest[1];
-        
-        if (piece?.type === 'p' && 
-            ((piece.color === 'w' && destRank === '8') || 
-             (piece.color === 'b' && destRank === '1'))) {
-          // Show promotion dialog
-          setIsPromoting(true);
-          setPromotionMove({ from: orig, to: dest });
-          return;
-        }
-      } catch (error) {
-        console.error('Error handling promotion check:', error);
-      }
-    }
-
-    // Regular move or non-promotion move
-    handleMoveWithSound(orig, dest);
-  }, [fen, analysisMode, handleMoveWithSound]);
-
-  // Handle move with sound
-  const handleMoveWithSound = useCallback((from: Key, to: Key, promotion?: string) => {
+  // Handle move with sound (defined first to avoid hoisting issues)
+  // This function overloads to handle both callback signatures
+  const handleMoveWithSound = useCallback((from: Key, to: Key, promotionOrMetadata?: string | unknown) => {
+    // Handle both signatures by checking if third param is string or metadata
+    const promotion = typeof promotionOrMetadata === 'string' ? promotionOrMetadata : undefined;
     try {
       // Load current position
       chessRef.current.load(fen);
@@ -267,9 +249,43 @@ export default function ChessgroundBoard({
     }
   }, [fen, onMove, analysisMode]);
 
-  // Initialize the board
+  // Handle move after for analysis mode (with promotion detection)
+  const handleAfterMove = useCallback((orig: Key, dest: Key) => {
+    if (!mountedRef.current) return;
+    
+    if (analysisMode) {
+      try {
+        // Check if this is a promotion
+        const chess = new Chess(fen);
+        const piece = chess.get(orig as Square);
+        const destRank = dest[1];
+        
+        if (piece?.type === 'p' && 
+            ((piece.color === 'w' && destRank === '8') || 
+             (piece.color === 'b' && destRank === '1'))) {
+          // Show promotion dialog
+          setIsPromoting(true);
+          setPromotionMove({ from: orig, to: dest });
+          return;
+        }
+      } catch (error) {
+        console.error('Error handling promotion check:', error);
+      }
+    }
+
+    // Regular move or non-promotion move
+    handleMoveWithSound(orig, dest);
+  }, [fen, analysisMode, handleMoveWithSound]);
+
+  // Initialize the board when element is ready
   useEffect(() => {
-    if (!boardRef.current) return;
+    if (!boardElement) return;
+    
+    // Ensure the element is actually in the DOM
+    if (!boardElement.parentNode) {
+      console.warn('Board element not attached to DOM yet');
+      return;
+    }
 
     const config: Config = {
       fen,
@@ -309,17 +325,32 @@ export default function ChessgroundBoard({
       drawable: analysisMode ? {
         enabled: false,
         visible: true,
-        shapes: arrowShapes,
-        autoShapes: arrowShapes
-      } : undefined,
+        shapes: arrowShapes || [],
+        autoShapes: arrowShapes || []
+      } : {
+        enabled: false,
+        visible: false
+      },
     };
 
-    apiRef.current = Chessground(boardRef.current, config);
+    try {
+      apiRef.current = Chessground(boardElement, config);
+    } catch (error) {
+      console.error('Failed to initialize Chessground:', error);
+      console.error('Board element:', boardElement);
+      console.error('Config:', config);
+      return;
+    }
 
     return () => {
-      apiRef.current?.destroy();
+      try {
+        apiRef.current?.destroy();
+      } catch (error) {
+        console.error('Failed to destroy Chessground:', error);
+      }
+      apiRef.current = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [boardElement]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update FEN and check status when they change
   useEffect(() => {
@@ -375,8 +406,8 @@ export default function ChessgroundBoard({
         drawable: {
           enabled: false,
           visible: true,
-          shapes: arrowShapes,
-          autoShapes: arrowShapes
+          shapes: arrowShapes || [],
+          autoShapes: arrowShapes || []
         }
       });
     }
@@ -466,8 +497,8 @@ export default function ChessgroundBoard({
 
   // Expose methods via ref if needed
   useEffect(() => {
-    if (boardRef.current) {
-      const board = boardRef.current as HTMLDivElement & {
+    if (boardElement) {
+      const board = boardElement as HTMLDivElement & {
         makeMove?: typeof makeMove;
         getFen?: typeof getFen;
         api?: typeof apiRef.current;
@@ -476,7 +507,7 @@ export default function ChessgroundBoard({
       board.getFen = getFen;
       board.api = apiRef.current;
     }
-  }, [makeMove, getFen]);
+  }, [boardElement, makeMove, getFen]);
 
   // Render analysis mode with controls or standard board
   if (analysisMode) {

@@ -96,7 +96,7 @@ export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu: _
   useEffect(() => {
     if (state.currentScoreBreakdown) {
       const difference = Math.abs(state.userGuess - state.puzzle.Rating);
-      const resultSound = getEvalResultSound(difference, 100);
+      const resultSound = getEvalResultSound(difference, 150); // Updated threshold
       playSound(resultSound);
     }
   }, [state.currentScoreBreakdown, state.userGuess, state.puzzle.Rating]);

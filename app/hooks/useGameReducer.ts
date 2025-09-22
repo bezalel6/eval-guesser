@@ -146,7 +146,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       );
       
       // Update stats
-      const isCorrect = difference <= 100; // Within 1 pawn
+      const isCorrect = difference <= 150; // Within 1.5 pawns (more lenient)
       const isPerfect = scoreBreakdown.accuracyTier === 'perfect';
       
       const newStreak = isCorrect ? state.streak + 1 : 0;

@@ -47,7 +47,7 @@ export default function ScorePanel({ state, dispatch }: ScorePanelProps) {
   
   const showResult = phase === 'result';
   const difference = showResult ? Math.abs(userGuess - puzzle.Rating) : 0;
-  const isCorrect = difference <= 100;
+  const isCorrect = difference <= 150; // Within 1.5 pawns
 
   const handleThemeChange = (event: SelectChangeEvent<string>) => {
     const theme = event.target.value === 'All' ? null : event.target.value;

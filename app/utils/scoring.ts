@@ -21,14 +21,14 @@ export interface Achievement {
 export function calculateEvaluationScore(difference: number): { base: number; bonus: number; tier: 'perfect' | 'excellent' | 'great' | 'good' | 'okay' | 'miss' } {
   const absDiff = Math.abs(difference);
   
-  if (absDiff <= 25) {
+  if (absDiff <= 30) {  // More lenient: was 25
     return { base: 1000, bonus: 200, tier: 'perfect' };
-  } else if (absDiff <= 50) {
-    return { base: 900 + Math.floor((50 - absDiff) * 4), bonus: 100, tier: 'excellent' };
-  } else if (absDiff <= 100) {
-    return { base: 700 + Math.floor((100 - absDiff) * 4), bonus: 50, tier: 'great' };
-  } else if (absDiff <= 200) {
-    return { base: 400 + Math.floor((200 - absDiff) * 3), bonus: 0, tier: 'good' };
+  } else if (absDiff <= 75) {  // More lenient: was 50
+    return { base: 900 + Math.floor((75 - absDiff) * 2), bonus: 100, tier: 'excellent' };
+  } else if (absDiff <= 150) {  // More lenient: was 100
+    return { base: 700 + Math.floor((150 - absDiff) * 2.5), bonus: 50, tier: 'great' };
+  } else if (absDiff <= 250) {  // More lenient: was 200
+    return { base: 400 + Math.floor((250 - absDiff) * 3), bonus: 0, tier: 'good' };
   } else if (absDiff <= 400) {
     return { base: 100 + Math.floor((400 - absDiff) * 1.5), bonus: 0, tier: 'okay' };
   } else {

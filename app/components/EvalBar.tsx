@@ -39,7 +39,7 @@ export default function EvalBar({
 }: EvalBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [hasInteracted, setHasInteracted] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(true); // Always show eval
 
   // Interactive mode handlers
   const updateValueFromPosition = useCallback((clientY: number) => {
@@ -161,8 +161,8 @@ export default function EvalBar({
           textAlign: 'center',
           gap: mode === 'result' ? 0.5 : 0
         }}>
-          {/* Show evaluation text only if interactive and has interacted, or in display/result mode */}
-          {((mode === 'interactive' && hasInteracted) || mode === 'display' || mode === 'result') && (
+          {/* Always show evaluation text */}
+          {(mode === 'interactive' || mode === 'display' || mode === 'result') && (
             <Typography 
               variant="h6" 
               sx={{ 
@@ -264,27 +264,11 @@ export default function EvalBar({
           opacity: 0.7
         }} />
         
-        {/* Interactive hint (interactive mode only) */}
-        {mode === 'interactive' && !hasInteracted && !disabled && (
-          <Box sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            padding: '4px 8px',
-            borderRadius: 1,
-            pointerEvents: 'none'
-          }}>
-            <Typography variant="caption" sx={{ color: 'white', whiteSpace: 'nowrap' }}>
-              Drag to guess
-            </Typography>
-          </Box>
-        )}
+        {/* Removed "Drag to guess" hint - users can see the eval immediately */}
       </Box>
       
       {/* Submit button (interactive mode only) */}
-      {mode === 'interactive' && hasInteracted && onSubmit && (
+      {mode === 'interactive' && onSubmit && (
         <Button
           variant="contained"
           onClick={onSubmit}
