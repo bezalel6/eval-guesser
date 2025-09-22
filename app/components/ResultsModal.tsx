@@ -7,6 +7,8 @@ import { GameState, formatEval } from "../hooks/useGameReducer";
 import { motion } from "framer-motion";
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
+import QueryStatsIcon from '@mui/icons-material/QueryStats';
+import { useRouter } from 'next/navigation';
 
 interface ResultsModalProps {
   state: GameState;
@@ -29,11 +31,17 @@ const style = {
 export default function ResultsModal({ state, onNextPuzzle }: ResultsModalProps) {
   const { phase, puzzle, userGuess, currentScoreBreakdown, comboMultiplier, moveQuality } = state;
   const open = phase === 'result';
+  const router = useRouter();
   
   if (!currentScoreBreakdown) return null;
   
   const difference = Math.abs(userGuess - puzzle.Rating);
   const accuracyPercentage = Math.max(0, 100 - (difference / 20)); // 0-100% accuracy
+  
+  const handleAnalyzePosition = () => {
+    // Navigate to analysis board with current position
+    router.push(`/analysis?fen=${encodeURIComponent(puzzle.FEN)}`);
+  };
 
   return (
     <Modal open={open} closeAfterTransition>
@@ -151,15 +159,35 @@ export default function ResultsModal({ state, onNextPuzzle }: ResultsModalProps)
             </Box>
           )}
 
-          <Button 
-            variant="contained" 
-            onClick={onNextPuzzle}
-            size="large"
-            fullWidth
-            sx={{ textTransform: 'none', fontSize: '1.1rem', py: 1.5 }}
-          >
-            Next Puzzle →
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button 
+              variant="outlined"
+              onClick={handleAnalyzePosition}
+              size="large"
+              startIcon={<QueryStatsIcon />}
+              sx={{ 
+                textTransform: 'none', 
+                fontSize: '1rem', 
+                py: 1.5,
+                flex: 1
+              }}
+            >
+              Analyze
+            </Button>
+            <Button 
+              variant="contained" 
+              onClick={onNextPuzzle}
+              size="large"
+              sx={{ 
+                textTransform: 'none', 
+                fontSize: '1.1rem', 
+                py: 1.5,
+                flex: 2
+              }}
+            >
+              Next Puzzle →
+            </Button>
+          </Box>
         </Box>
       </Fade>
     </Modal>

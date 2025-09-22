@@ -6,7 +6,6 @@ import GameLayout from "./GameLayout";
 import ScorePanel from "./ScorePanel";
 import BoardWrapper from "./BoardWrapper";
 import EvaluationSlider from "./EvaluationSlider";
-import ResultsModal from "./ResultsModal";
 import BestMoveChallenge from "./BestMoveChallenge";
 import AchievementToast from "./AchievementToast";
 import { Box } from "@mui/material";
@@ -109,6 +108,35 @@ export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu }:
     }
   }, [state.newAchievements]);
 
+  // Auto-progress to next puzzle after showing results
+  useEffect(() => {
+    if (state.phase === 'result') {
+      // Auto-progress to best move challenge or next puzzle after a short delay
+      const timer = setTimeout(() => {
+        if (state.puzzle.Moves) {
+          dispatch({ type: 'START_BEST_MOVE_CHALLENGE' });
+        } else {
+          // Skip best move challenge if no moves available
+          fetchRandomPuzzle();
+        }
+      }, 2000); // 2 second delay to view results
+      
+      return () => clearTimeout(timer);
+    }
+  }, [state.phase, state.puzzle.Moves, fetchRandomPuzzle, dispatch]);
+
+  // Auto-progress from best move challenge
+  useEffect(() => {
+    if (state.phase === 'best-move-challenge' && state.moveQuality !== null) {
+      // After best move attempt, go to next puzzle
+      const timer = setTimeout(() => {
+        fetchRandomPuzzle();
+      }, 1500); // 1.5 second delay
+      
+      return () => clearTimeout(timer);
+    }
+  }, [state.phase, state.moveQuality, fetchRandomPuzzle]);
+
   // Show best move challenge screen when in that phase
   if (state.phase === 'best-move-challenge') {
     return (
@@ -119,7 +147,6 @@ export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu }:
           slider={<Box sx={{ minHeight: 100 }} />} // Empty space
           controls={<Box sx={{ minHeight: 48 }} />}
         />
-        <ResultsModal state={state} onNextPuzzle={fetchRandomPuzzle} />
         <AchievementToast 
           achievements={state.newAchievements} 
           onClose={() => dispatch({ type: 'CLEAR_NEW_ACHIEVEMENTS' })}
@@ -136,7 +163,6 @@ export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu }:
         slider={<EvaluationSlider state={state} dispatch={dispatch} onGuess={handleGuess} isBoardModified={state.currentFen !== state.puzzle.FEN} />}
         controls={<Box sx={{ minHeight: 48, mt: 2 }} />}
       />
-      <ResultsModal state={state} onNextPuzzle={fetchRandomPuzzle} />
       <AchievementToast 
         achievements={state.newAchievements} 
         onClose={() => dispatch({ type: 'CLEAR_NEW_ACHIEVEMENTS' })}

@@ -23,6 +23,7 @@
     "react-dom": "^19.1.1",
     "react-scan": "^0.4.3",
     "sqlite3": "^5.1.7",
+    "stockfish.js": "^10.0.2",
     "typescript": "^5.1.0"
   },
   "scripts": {

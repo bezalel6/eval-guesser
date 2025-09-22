@@ -10,18 +10,20 @@ interface GameModeCardProps {
   title: string;
   description: string;
   icon: React.ReactNode;
-  bestScore: number;
+  bestScore?: number;
   onPlay: () => void;
   disabled?: boolean;
+  hideScore?: boolean;
 }
 
 export default function GameModeCard({
   title,
   description,
   icon,
-  bestScore,
+  bestScore = 0,
   onPlay,
-  disabled = false
+  disabled = false,
+  hideScore = false
 }: GameModeCardProps) {
   return (
     <motion.div
@@ -83,19 +85,21 @@ export default function GameModeCard({
         {/* Footer with score and play button */}
         <Box>
           {/* Best score chip */}
-          <Box sx={{ mb: 2 }}>
-            <Chip
-              icon={<EmojiEventsIcon sx={{ fontSize: 16 }} />}
-              label={`Best: ${bestScore.toLocaleString()}`}
-              size="small"
-              variant="outlined"
-              sx={{
-                borderColor: "primary.main",
-                color: "primary.main",
-                fontWeight: "bold"
-              }}
-            />
-          </Box>
+          {!hideScore && (
+            <Box sx={{ mb: 2 }}>
+              <Chip
+                icon={<EmojiEventsIcon sx={{ fontSize: 16 }} />}
+                label={`Best: ${bestScore.toLocaleString()}`}
+                size="small"
+                variant="outlined"
+                sx={{
+                  borderColor: "primary.main",
+                  color: "primary.main",
+                  fontWeight: "bold"
+                }}
+              />
+            </Box>
+          )}
 
           {/* Play button */}
           <Button

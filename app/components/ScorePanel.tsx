@@ -1,12 +1,14 @@
 
 "use client";
 
-import { Box, Typography, Paper, Select, MenuItem, FormControl, InputLabel, SelectChangeEvent, Chip, LinearProgress } from "@mui/material";
-import { GameState, GameAction } from "../hooks/useGameReducer";
-import { motion } from "framer-motion";
+import { Box, Typography, Paper, Select, MenuItem, FormControl, InputLabel, SelectChangeEvent, Chip, LinearProgress, Button, Divider } from "@mui/material";
+import { GameState, GameAction, formatEval } from "../hooks/useGameReducer";
+import { motion, AnimatePresence } from "framer-motion";
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import StarIcon from '@mui/icons-material/Star';
+import QueryStatsIcon from '@mui/icons-material/QueryStats';
+import { useRouter } from 'next/navigation';
 
 const THEMES = [
   'All',
@@ -35,16 +37,83 @@ export default function ScorePanel({ state, dispatch }: ScorePanelProps) {
     comboMultiplier,
     perfectStreak,
     totalPuzzles,
-    achievements
+    achievements,
+    phase,
+    puzzle,
+    userGuess,
+    currentScoreBreakdown
   } = state;
+  const router = useRouter();
+  
+  const showResult = phase === 'result' || phase === 'best-move-challenge';
+  const difference = showResult ? Math.abs(userGuess - puzzle.Rating) : 0;
+  const isCorrect = difference <= 100;
 
   const handleThemeChange = (event: SelectChangeEvent<string>) => {
     const theme = event.target.value === 'All' ? null : event.target.value;
     dispatch({ type: 'SET_THEME', payload: theme });
   };
 
+  const handleAnalyze = () => {
+    router.push(`/analysis?fen=${encodeURIComponent(puzzle.FEN)}`);
+  };
+
   return (
     <Paper elevation={3} sx={{ p: 2, borderRadius: 2, textAlign: 'center' }}>
+      {/* Result Feedback when puzzle completed */}
+      <AnimatePresence>
+        {showResult && currentScoreBreakdown && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Box sx={{ 
+              mb: 2, 
+              p: 1.5, 
+              borderRadius: 1,
+              backgroundColor: isCorrect ? 'success.dark' : 'error.dark',
+              border: '2px solid',
+              borderColor: isCorrect ? 'success.main' : 'error.main'
+            }}>
+              <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
+                {currentScoreBreakdown.feedbackText}
+              </Typography>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="body2">Your guess:</Typography>
+                <Typography variant="body2" fontWeight="bold">{formatEval(userGuess)}</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="body2">Actual:</Typography>
+                <Typography variant="body2" fontWeight="bold" color="primary">{formatEval(puzzle.Rating)}</Typography>
+              </Box>
+              
+              <Divider sx={{ my: 1, borderColor: 'rgba(255,255,255,0.2)' }} />
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="body2">Points:</Typography>
+                <Typography variant="body2" fontWeight="bold" color="warning.main">
+                  +{currentScoreBreakdown.totalPoints}
+                </Typography>
+              </Box>
+              
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<QueryStatsIcon />}
+                onClick={handleAnalyze}
+                sx={{ mt: 1 }}
+                fullWidth
+              >
+                Analyze Position
+              </Button>
+            </Box>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
       {/* Score Header with animation */}
       <motion.div
         key={score}

@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import GameModeCard from "./GameModeCard";
 import PsychologyIcon from "@mui/icons-material/Psychology";
 import FlashOnIcon from "@mui/icons-material/FlashOn";
+import QueryStatsIcon from "@mui/icons-material/QueryStats";
+import { useRouter } from 'next/navigation';
 
 interface HomepageProps {
   onClassicPlay: () => void;
@@ -20,6 +22,7 @@ export default function Homepage({
   classicBestScore = 0,
   quickThinkBestScore = 0
 }: HomepageProps) {
+  const router = useRouter();
   return (
     <Container maxWidth="lg" sx={{ py: 8 }}>
       <Box
@@ -104,6 +107,23 @@ export default function Homepage({
               bestScore={quickThinkBestScore}
               onPlay={onQuickThinkPlay}
               disabled={true} // Coming soon
+            />
+          </Box>
+        </motion.div>
+
+        {/* Analysis Board Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
+        >
+          <Box sx={{ mt: 4, maxWidth: 400, mx: "auto" }}>
+            <GameModeCard
+              title="Analysis Board"
+              description="Analyze positions with Stockfish engine"
+              icon={<QueryStatsIcon />}
+              onPlay={() => router.push('/analysis')}
+              hideScore={true}
             />
           </Box>
         </motion.div>
