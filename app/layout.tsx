@@ -2,8 +2,8 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
+import EmotionCacheProvider from "./emotion";
 import theme from "./theme";
-import { StockfishProvider } from "./lib/stockfish-engine";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,12 +19,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <StockfishProvider>
+        <EmotionCacheProvider>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
             <main>{children}</main>
-          </StockfishProvider>
-        </ThemeProvider>
+          </ThemeProvider>
+        </EmotionCacheProvider>
       </body>
     </html>
   );

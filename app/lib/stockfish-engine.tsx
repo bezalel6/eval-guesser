@@ -508,10 +508,17 @@ export function StockfishProvider({ children }: StockfishProviderProps) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [initializationError, setInitializationError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Initialize engine on mount
+  // Handle SSR by only initializing after mount
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    setIsMounted(true);
+  }, []);
+
+  // Initialize engine only after mount to prevent SSR issues
+  useEffect(() => {
+    // Skip initialization on server or before mount
+    if (!isMounted || typeof window === 'undefined') {
       return;
     }
 
@@ -542,7 +549,7 @@ export function StockfishProvider({ children }: StockfishProviderProps) {
         engineRef.current = null;
       }
     };
-  }, []);
+  }, [isMounted]);
 
   // Create stable API object
   const engineAPI: StockfishEngineAPI | null = engineRef.current ? {

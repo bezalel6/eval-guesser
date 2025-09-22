@@ -10,7 +10,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import AnalysisErrorBoundary from '../components/AnalysisErrorBoundary';
 import { Chess } from 'chess.js';
 import type { AnalysisLine } from '../lib/stockfish-engine';
-import { useStockfish } from '../lib/stockfish-engine';
+import { useStockfish, StockfishProvider } from '../lib/stockfish-engine';
 
 function AnalysisContent() {
   const searchParams = useSearchParams();
@@ -159,7 +159,7 @@ function AnalysisContent() {
           }}>
             <ErrorBoundary
               enableRetry={true}
-              resetKeys={[currentFen, boardFlipped, currentMoveIndex]}
+              resetKeys={[currentFen, String(boardFlipped), currentMoveIndex]}
               resetOnPropsChange={true}
             >
               <AnalysisBoard
@@ -185,7 +185,7 @@ function AnalysisContent() {
           }}>
             <ErrorBoundary
               enableRetry={true}
-              resetKeys={[currentFen, isInitialized]}
+              resetKeys={[currentFen, String(isInitialized)]}
               resetOnPropsChange={true}
             >
               <AnalysisSidebar
@@ -210,25 +210,27 @@ function AnalysisContent() {
 
 export default function AnalysisPage() {
   return (
-    <ErrorBoundary
-      enableRetry={true}
-      onError={(error, errorInfo) => {
-        console.error('Top-level analysis page error:', error, errorInfo);
-      }}
-    >
-      <Suspense fallback={
-        <Box sx={{ 
-          height: '100vh', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          backgroundColor: '#1a1a1a'
-        }}>
-          <CircularProgress />
-        </Box>
-      }>
-        <AnalysisContent />
-      </Suspense>
-    </ErrorBoundary>
+    <StockfishProvider>
+      <ErrorBoundary
+        enableRetry={true}
+        onError={(error, errorInfo) => {
+          console.error('Top-level analysis page error:', error, errorInfo);
+        }}
+      >
+        <Suspense fallback={
+          <Box sx={{ 
+            height: '100vh', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            backgroundColor: '#1a1a1a'
+          }}>
+            <CircularProgress />
+          </Box>
+        }>
+          <AnalysisContent />
+        </Suspense>
+      </ErrorBoundary>
+    </StockfishProvider>
   );
 }

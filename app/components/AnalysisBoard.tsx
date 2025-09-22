@@ -48,7 +48,7 @@ export default function AnalysisBoard({
   const [promotionMove, setPromotionMove] = useState<{from: Key, to: Key} | null>(null);
 
   // Stable callbacks to prevent closure memory leaks
-  const handleMoveWithSoundRef = useRef<(from: Key, to: Key, promotion?: string) => void>();
+  const handleMoveWithSoundRef = useRef<(from: Key, to: Key, promotion?: string) => void>(null as any);
   
   const handleMoveWithSound = useCallback((from: Key, to: Key, promotion?: string) => {
     if (!mountedRef.current) return;
@@ -179,7 +179,7 @@ export default function AnalysisBoard({
     const config: Config = {
       fen,
       orientation: flipped ? 'black' : 'white',
-      turnColor: color,
+      turnColor: color as 'white' | 'black',
       movable: {
         free: false,
         color: 'both', // Allow moving both colors for analysis
@@ -228,9 +228,9 @@ export default function AnalysisBoard({
 
     apiRef.current.set({
       fen,
-      turnColor: color,
+      turnColor: color as 'white' | 'black',
       orientation: flipped ? 'black' : 'white',
-      check: inCheck ? color : false,
+      check: inCheck ? (color as 'white' | 'black') : false,
       movable: {
         color: 'both',
         dests,
