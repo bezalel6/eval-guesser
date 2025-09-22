@@ -22,20 +22,37 @@ export default function Header({ onBackClick, showBackButton = false, title = "E
       }}
     >
       <Toolbar>
-        {showBackButton && (
-          <IconButton
-            edge="start"
-            color="inherit"
+        {showBackButton ? (
+          <Box
             onClick={onBackClick}
-            sx={{ mr: 2 }}
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              flexGrow: 1,
+              cursor: 'pointer',
+              '&:hover': {
+                opacity: 0.8
+              }
+            }}
             title="Back to Menu (Esc)"
           >
-            <ArrowBackIcon />
-          </IconButton>
+            <IconButton
+              edge="start"
+              color="inherit"
+              sx={{ mr: 1 }}
+              component="div"
+            >
+              <ArrowBackIcon />
+            </IconButton>
+            <Typography variant="h6" component="div">
+              {title}
+            </Typography>
+          </Box>
+        ) : (
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            {title}
+          </Typography>
         )}
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          {title}
-        </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <SoundSettings />
         </Box>
