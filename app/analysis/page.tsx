@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Box, CircularProgress } from '@mui/material';
@@ -11,6 +9,7 @@ import AnalysisErrorBoundary from '../components/AnalysisErrorBoundary';
 import { Chess } from 'chess.js';
 import type { AnalysisLine } from '../lib/stockfish-engine';
 import { useStockfish } from '../lib/stockfish-engine';
+import AnalysisLayout from '../components/AnalysisLayout';
 
 function AnalysisContent() {
   const searchParams = useSearchParams();
@@ -154,92 +153,64 @@ function AnalysisContent() {
         lastError: gameState.lastAnalysisError
       }}
     >
-      <Box sx={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        flexDirection: 'column',
-        backgroundColor: '#1a1a1a'
-      }}>
-        <ErrorBoundary
-          enableRetry={true}
-          resetKeys={[gameState.currentFen]}
-          resetOnPropsChange={true}
-        >
-          <Header 
-            title="Analysis Board" 
-            showBackButton={true}
-            onBackClick={() => window.history.back()}
-          />
-        </ErrorBoundary>
-        
-        <Box sx={{ 
-          display: 'flex', 
-          flex: 1,
-          gap: 2,
-          p: 2,
-          maxWidth: '1400px',
-          margin: '0 auto',
-          width: '100%'
-        }}>
-          {/* Chess Board */}
-          <Box sx={{ 
-            flex: '1 1 auto',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}>
-            <ErrorBoundary
-              enableRetry={true}
-              resetKeys={[gameState.currentFen, String(gameState.boardFlipped), gameState.currentMoveIndex]}
-              resetOnPropsChange={true}
-            >
-              <AnalysisBoard
-                fen={gameState.currentFen}
-                onMove={handleMove}
-                flipped={gameState.boardFlipped}
-                onFlip={flipBoard}
-                moveHistory={gameState.moveHistory}
-                currentMoveIndex={gameState.currentMoveIndex}
-                onGoToMove={goToMove}
-                onReset={reset}
-                hoveredLine={hoveredLineIndex !== null ? analysisData.lines[hoveredLineIndex] : null}
-              />
-            </ErrorBoundary>
-          </Box>
-          
-          {/* Analysis Sidebar */}
-          <Box sx={{ 
-            width: '400px',
-            minWidth: '350px',
-            maxWidth: '450px',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-            <ErrorBoundary
-              enableRetry={true}
-              resetKeys={[gameState.currentFen, String(isInitialized)]}
-              resetOnPropsChange={true}
-            >
-              <AnalysisSidebar
-                fen={gameState.currentFen}
-                onAnalysisUpdate={useCallback((lines, evalResult, isAnalyzing, currentDepth) => {
-                  // Batch update all analysis data
-                  setAnalysisData({
-                    lines,
-                    evaluation: evalResult,
-                    isAnalyzing,
-                    depth: currentDepth
-                  });
-                }, [])}
-                moveHistory={gameState.moveHistory}
-                currentMoveIndex={gameState.currentMoveIndex}
-                onGoToMove={goToMove}
-                onLineHover={setHoveredLineIndex}
-              />
-            </ErrorBoundary>
-          </Box>
-        </Box>
-      </Box>
+      <AnalysisLayout
+        header={(
+          <ErrorBoundary
+            enableRetry={true}
+            resetKeys={[gameState.currentFen]}
+            resetOnPropsChange={true}
+          >
+            <Header 
+              title="Analysis Board" 
+              showBackButton={true}
+              onBackClick={() => window.history.back()}
+            />
+          </ErrorBoundary>
+        )}
+        board={(
+          <ErrorBoundary
+            enableRetry={true}
+            resetKeys={[gameState.currentFen, String(gameState.boardFlipped), gameState.currentMoveIndex]}
+            resetOnPropsChange={true}
+          >
+            <AnalysisBoard
+              fen={gameState.currentFen}
+              onMove={handleMove}
+              flipped={gameState.boardFlipped}
+              onFlip={flipBoard}
+              moveHistory={gameState.moveHistory}
+              currentMoveIndex={gameState.currentMoveIndex}
+              onGoToMove={goToMove}
+              onReset={reset}
+              hoveredLine={hoveredLineIndex !== null ? analysisData.lines[hoveredLineIndex] : null}
+            />
+          </ErrorBoundary>
+        )}
+        sidebar={(
+          <ErrorBoundary
+            enableRetry={true}
+            resetKeys={[gameState.currentFen, String(isInitialized)]}
+            resetOnPropsChange={true}
+          >
+            <AnalysisSidebar
+              fen={gameState.currentFen}
+              onAnalysisUpdate={useCallback((lines, evalResult, isAnalyzing, currentDepth) => {
+                // Batch update all analysis data
+                setAnalysisData({
+                  lines,
+                  evaluation: evalResult,
+                  isAnalyzing,
+                  depth: currentDepth
+                });
+              }, [])}
+              moveHistory={gameState.moveHistory}
+              currentMoveIndex={gameState.currentMoveIndex}
+              onGoToMove={goToMove}
+              onLineHover={setHoveredLineIndex}
+            />
+          </ErrorBoundary>
+        )}
+      />
     </AnalysisErrorBoundary>
   );
 }
