@@ -1,7 +1,8 @@
 "use client";
 
-import { useReducer, useCallback } from 'react';
-import type { Key } from 'chessground/types';
+import { useReducer } from 'react';
+import type { ScoreBreakdown, Achievement } from '../utils/scoring';
+import { calculateTotalScore, calculateStreakMultiplier, checkAchievements } from '../utils/scoring';
 
 const MAX_EVAL = 2000;
 const MATE_VALUE = 10000;
@@ -15,7 +16,7 @@ export interface Puzzle {
   OpeningTags?: string;
 }
 
-export type GamePhase = 'loading' | 'guessing' | 'result' | 'solution-loading';
+export type GamePhase = 'loading' | 'guessing' | 'result' | 'solution-loading' | 'best-move-challenge';
 
 export interface GameState {
   puzzle: Puzzle;
@@ -30,6 +31,20 @@ export interface GameState {
   hasInteractedWithEval: boolean;
   bestMoveShown: boolean;
   currentTheme: string | null;
+  // New scoring properties
+  timeStarted: number | null;
+  timeEnded: number | null;
+  perfectStreak: number;
+  perfectCount: number;
+  speedDemonCount: number;
+  bestMoveCount: number;
+  totalPuzzles: number;
+  currentScoreBreakdown: ScoreBreakdown | null;
+  achievements: Achievement[];
+  unlockedAchievementIds: string[];
+  newAchievements: Achievement[];
+  moveQuality: 'best' | 'good' | 'wrong' | null;
+  comboMultiplier: number;
 }
 
 export type GameAction = 
@@ -45,7 +60,12 @@ export type GameAction =
   | { type: 'SLIDER_CHANGE'; payload: number } // value
   | { type: 'GUESS_SUBMITTED' }
   | { type: 'SHOW_BEST_MOVE' }
-  | { type: 'SET_THEME'; payload: string | null };
+  | { type: 'SET_THEME'; payload: string | null }
+  | { type: 'START_BEST_MOVE_CHALLENGE' }
+  | { type: 'SUBMIT_BEST_MOVE'; payload: { from: string; to: string } }
+  | { type: 'SKIP_BEST_MOVE' }
+  | { type: 'ACHIEVEMENT_UNLOCKED'; payload: Achievement }
+  | { type: 'CLEAR_NEW_ACHIEVEMENTS' };
 
 const initialState: GameState = {
   puzzle: { PuzzleId: '', FEN: '', Moves: '', Rating: 0 },
@@ -60,6 +80,20 @@ const initialState: GameState = {
   hasInteractedWithEval: false,
   bestMoveShown: false,
   currentTheme: null,
+  // New scoring properties
+  timeStarted: null,
+  timeEnded: null,
+  perfectStreak: 0,
+  perfectCount: 0,
+  speedDemonCount: 0,
+  bestMoveCount: 0,
+  totalPuzzles: 0,
+  currentScoreBreakdown: null,
+  achievements: [],
+  unlockedAchievementIds: [],
+  newAchievements: [],
+  moveQuality: null,
+  comboMultiplier: 1.0,
 };
 
 function gameReducer(state: GameState, action: GameAction): GameState {
@@ -78,7 +112,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         sliderValue: 0,
         userGuess: 0,
         hasInteractedWithEval: false,
-        bestMoveShown: false, // Reset on new puzzle
+        bestMoveShown: false,
+        timeStarted: Date.now(), // Start timer when puzzle loads
+        timeEnded: null,
+        moveQuality: null,
+        currentScoreBreakdown: null,
+        newAchievements: [],
       };
     case 'FETCH_NEW_PUZZLE_FAILURE':
       return {
@@ -106,14 +145,48 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
 
-      // Otherwise, we are calculating the result of a guess
-      const difference = Math.abs(state.userGuess - newPuzzleState.Rating);
-      const points = Math.max(0, 1000 - difference);
-      const newScore = state.score + points;
+      // Calculate time taken
+      const timeTaken = state.timeStarted ? (Date.now() - state.timeStarted) / 1000 : 999;
       
+      // Calculate score breakdown
+      const difference = Math.abs(state.userGuess - newPuzzleState.Rating);
+      const scoreBreakdown = calculateTotalScore(
+        difference,
+        timeTaken,
+        state.streak,
+        state.perfectStreak,
+        null // No move quality yet
+      );
+      
+      // Update stats
       const isCorrect = difference <= 100; // Within 1 pawn
+      const isPerfect = scoreBreakdown.accuracyTier === 'perfect';
+      const isSpeedDemon = timeTaken < 10;
+      
       const newStreak = isCorrect ? state.streak + 1 : 0;
+      const newPerfectStreak = isPerfect ? state.perfectStreak + 1 : 0;
       const newBestStreak = Math.max(state.bestStreak, newStreak);
+      const newPerfectCount = state.perfectCount + (isPerfect ? 1 : 0);
+      const newSpeedDemonCount = state.speedDemonCount + (isSpeedDemon ? 1 : 0);
+      const newTotalPuzzles = state.totalPuzzles + 1;
+      const newScore = state.score + scoreBreakdown.totalPoints;
+      
+      // Update combo multiplier
+      const newComboMultiplier = calculateStreakMultiplier(newStreak);
+      
+      // Check for achievements
+      const achievementStats = {
+        perfectCount: newPerfectCount,
+        streak: newStreak,
+        perfectStreak: newPerfectStreak,
+        bestMoveCount: state.bestMoveCount,
+        speedDemonCount: newSpeedDemonCount,
+        totalPuzzles: newTotalPuzzles,
+        totalScore: newScore,
+      };
+      
+      const newUnlockedAchievements = checkAchievements(achievementStats, state.unlockedAchievementIds);
+      const allUnlockedIds = [...state.unlockedAchievementIds, ...newUnlockedAchievements.map(a => a.id)];
 
       return {
         ...state,
@@ -121,7 +194,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         score: newScore,
         streak: newStreak,
         bestStreak: newBestStreak,
-        phase: 'result',
+        perfectStreak: newPerfectStreak,
+        perfectCount: newPerfectCount,
+        speedDemonCount: newSpeedDemonCount,
+        totalPuzzles: newTotalPuzzles,
+        currentScoreBreakdown: scoreBreakdown,
+        phase: 'best-move-challenge', // Go to best move challenge
+        timeEnded: Date.now(),
+        comboMultiplier: newComboMultiplier,
+        achievements: [...state.achievements, ...newUnlockedAchievements],
+        unlockedAchievementIds: allUnlockedIds,
+        newAchievements: newUnlockedAchievements,
       };
     }
     case 'MOVE_PIECE':
@@ -160,6 +243,91 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         // The fetch logic will be handled in the component
         phase: state.puzzle.Moves ? state.phase : 'solution-loading',
       };
+    case 'SET_THEME':
+      return {
+        ...state,
+        currentTheme: action.payload,
+      };
+    case 'START_BEST_MOVE_CHALLENGE':
+      return {
+        ...state,
+        phase: 'best-move-challenge',
+        currentFen: state.puzzle.FEN, // Reset to original position
+      };
+    case 'SUBMIT_BEST_MOVE': {
+      // Parse the best move from puzzle
+      const bestMove = state.puzzle.Moves ? state.puzzle.Moves.split(' ')[0] : null;
+      if (!bestMove) {
+        return state;
+      }
+      
+      // Convert UCI notation to from/to
+      const bestFrom = bestMove.substring(0, 2);
+      const bestTo = bestMove.substring(2, 4);
+      
+      // Check if move is correct
+      const isCorrect = action.payload.from === bestFrom && action.payload.to === bestTo;
+      const moveQuality: 'best' | 'good' | 'wrong' = isCorrect ? 'best' : 'wrong';
+      
+      // Recalculate score with move bonus
+      const timeTaken = state.timeStarted ? (state.timeEnded! - state.timeStarted) / 1000 : 999;
+      const difference = Math.abs(state.userGuess - state.puzzle.Rating);
+      const updatedScoreBreakdown = calculateTotalScore(
+        difference,
+        timeTaken,
+        state.streak,
+        state.perfectStreak,
+        moveQuality
+      );
+      
+      const additionalPoints = updatedScoreBreakdown.moveBonus;
+      const newBestMoveCount = state.bestMoveCount + (isCorrect ? 1 : 0);
+      const newScore = state.score + additionalPoints;
+      
+      // Check for move-related achievements
+      const achievementStats = {
+        perfectCount: state.perfectCount,
+        streak: state.streak,
+        perfectStreak: state.perfectStreak,
+        bestMoveCount: newBestMoveCount,
+        speedDemonCount: state.speedDemonCount,
+        totalPuzzles: state.totalPuzzles,
+        totalScore: newScore,
+      };
+      
+      const newUnlockedAchievements = checkAchievements(achievementStats, state.unlockedAchievementIds);
+      const allUnlockedIds = [...state.unlockedAchievementIds, ...newUnlockedAchievements.map(a => a.id)];
+      
+      return {
+        ...state,
+        moveQuality,
+        bestMoveCount: newBestMoveCount,
+        score: newScore,
+        currentScoreBreakdown: updatedScoreBreakdown,
+        phase: 'result',
+        achievements: [...state.achievements, ...newUnlockedAchievements],
+        unlockedAchievementIds: allUnlockedIds,
+        newAchievements: [...state.newAchievements, ...newUnlockedAchievements],
+      };
+    }
+    case 'SKIP_BEST_MOVE':
+      return {
+        ...state,
+        phase: 'result',
+        moveQuality: null,
+      };
+    case 'ACHIEVEMENT_UNLOCKED':
+      return {
+        ...state,
+        achievements: [...state.achievements, action.payload],
+        unlockedAchievementIds: [...state.unlockedAchievementIds, action.payload.id],
+        newAchievements: [...state.newAchievements, action.payload],
+      };
+    case 'CLEAR_NEW_ACHIEVEMENTS':
+      return {
+        ...state,
+        newAchievements: [],
+      };
     default:
       return state;
   }
@@ -171,6 +339,7 @@ export function useGameReducer(initialPuzzle: Puzzle) {
     puzzle: initialPuzzle,
     currentFen: initialPuzzle.FEN,
     phase: 'guessing' as GamePhase,
+    timeStarted: Date.now(), // Start timer immediately for initial puzzle
   });
 
   return { state, dispatch };

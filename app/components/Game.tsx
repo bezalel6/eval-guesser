@@ -6,15 +6,20 @@ import GameLayout from "./GameLayout";
 import ScorePanel from "./ScorePanel";
 import BoardWrapper from "./BoardWrapper";
 import EvaluationSlider from "./EvaluationSlider";
-import ResultsModal from "./ResultsModal"; // Import the new modal
+import ResultsModal from "./ResultsModal";
+import BestMoveChallenge from "./BestMoveChallenge";
+import AchievementToast from "./AchievementToast";
+import Timer from "./Timer";
 import { Box } from "@mui/material";
 
 interface GameProps {
   initialPuzzle: Puzzle;
+  onUpdateHighScore?: (score: number) => void;
+  onBackToMenu?: () => void;
 }
 
 
-export default function Game({ initialPuzzle }: GameProps) {
+export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu }: GameProps) {
   const { state, dispatch } = useGameReducer(initialPuzzle);
 
   const fetchSolution = async () => {
@@ -37,12 +42,6 @@ export default function Game({ initialPuzzle }: GameProps) {
     fetchSolution(); // Fetch solution after guess is submitted
   };
 
-  const handleShowBestMove = () => {
-    dispatch({ type: 'SHOW_BEST_MOVE' });
-    if (!state.puzzle.Moves) {
-      fetchSolution();
-    }
-  };
 
   const fetchRandomPuzzle = React.useCallback(async () => {
     dispatch({ type: "FETCH_NEW_PUZZLE_START" });
@@ -78,15 +77,46 @@ export default function Game({ initialPuzzle }: GameProps) {
     fetchRandomPuzzle();
   }, [state.currentTheme, fetchRandomPuzzle]);
 
+  // Track high score
+  useEffect(() => {
+    if (onUpdateHighScore) {
+      onUpdateHighScore(state.score);
+    }
+  }, [state.score, onUpdateHighScore]);
+
+  // Show best move challenge screen when in that phase
+  if (state.phase === 'best-move-challenge') {
+    return (
+      <>
+        <GameLayout
+          scorePanel={<ScorePanel state={state} dispatch={dispatch} />}
+          board={<BestMoveChallenge state={state} dispatch={dispatch} />}
+          slider={<Box sx={{ minHeight: 100 }} />} // Empty space
+          controls={<Box sx={{ minHeight: 48 }} />}
+        />
+        <ResultsModal state={state} onNextPuzzle={fetchRandomPuzzle} />
+        <AchievementToast 
+          achievements={state.newAchievements} 
+          onClose={() => dispatch({ type: 'CLEAR_NEW_ACHIEVEMENTS' })}
+        />
+      </>
+    );
+  }
+  
   return (
     <>
       <GameLayout
         scorePanel={<ScorePanel state={state} dispatch={dispatch} />}
-        board={<BoardWrapper state={state} dispatch={dispatch} onShowBestMove={handleShowBestMove} onSkip={fetchRandomPuzzle} />}
+        board={<BoardWrapper state={state} dispatch={dispatch} />}
         slider={<EvaluationSlider state={state} dispatch={dispatch} onGuess={handleGuess} isBoardModified={state.currentFen !== state.puzzle.FEN} />}
         controls={<Box sx={{ minHeight: 48, mt: 2 }} />}
       />
+      <Timer startTime={state.timeStarted} phase={state.phase} />
       <ResultsModal state={state} onNextPuzzle={fetchRandomPuzzle} />
+      <AchievementToast 
+        achievements={state.newAchievements} 
+        onClose={() => dispatch({ type: 'CLEAR_NEW_ACHIEVEMENTS' })}
+      />
     </>
   );
 }

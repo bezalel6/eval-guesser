@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useRef, useEffect } from "react";
+import React, { useCallback, useRef } from "react";
 import dynamic from 'next/dynamic';
 import { Box, Typography, CircularProgress, IconButton } from "@mui/material";
 import { Chess } from "chess.js";
@@ -10,7 +10,6 @@ import { GameState, GameAction } from "../hooks/useGameReducer";
 // MUI Icons
 import LoopIcon from '@mui/icons-material/Loop';
 import SwapVertIcon from '@mui/icons-material/SwapVert';
-import LightbulbIcon from '@mui/icons-material/Lightbulb';
 
 const ChessgroundBoard = dynamic(() => import('./ChessgroundBoard'), {
   ssr: false,
@@ -21,12 +20,10 @@ const ChessgroundBoard = dynamic(() => import('./ChessgroundBoard'), {
 interface BoardWrapperProps {
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
-  onShowBestMove: () => void;
-  onSkip: () => void;
 }
 
-export default function BoardWrapper({ state, dispatch, onShowBestMove, onSkip }: BoardWrapperProps) {
-  const { currentFen, boardFlipped, phase, bestMoveShown, puzzle } = state;
+export default function BoardWrapper({ state, dispatch }: BoardWrapperProps) {
+  const { currentFen, boardFlipped, phase } = state;
   const chessRef = useRef(new Chess());
 
   const handleMove = useCallback((from: Key, to: Key) => {
@@ -75,12 +72,6 @@ export default function BoardWrapper({ state, dispatch, onShowBestMove, onSkip }
   const boardOrientation = boardFlipped ? (turnColor === 'w' ? 'black' : 'white') : (turnColor === 'w' ? 'white' : 'black');
   const isBoardModified = currentFen !== state.puzzle.FEN;
 
-  // Effect to draw the best move arrow
-  // Note: Since we can't access chessground's API directly from the wrapped component,
-  // the best move functionality would need to be implemented differently
-  useEffect(() => {
-    // Best move arrow feature removed - would need ChessgroundBoard to expose API
-  }, [bestMoveShown, puzzle.Moves]);
 
   return (
     <Box sx={{ width: '100%', maxWidth: '600px', position: 'relative' }}>
@@ -106,9 +97,6 @@ export default function BoardWrapper({ state, dispatch, onShowBestMove, onSkip }
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1, mb: 2 }}>
         <Typography variant="body2" fontWeight="bold">{turn} to move</Typography>
         <Box>
-          <IconButton title="Show Best Move" onClick={onShowBestMove} disabled={phase !== 'guessing' || isBoardModified}>
-            <LightbulbIcon />
-          </IconButton>
           {isBoardModified && (
             <IconButton title="Reset Position" onClick={() => dispatch({ type: 'RESET_POSITION' })}>
               <LoopIcon />

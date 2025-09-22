@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import theme from "./theme";
-import Header from "./components/Header";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,7 +20,6 @@ export default function RootLayout({
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <body>
-          <Header />
           <main>{children}</main>
         </body>
       </ThemeProvider>

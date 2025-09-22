@@ -1,8 +1,13 @@
 
 "use client";
 
-import { Box, Typography, Paper, Select, MenuItem, FormControl, InputLabel, SelectChangeEvent } from "@mui/material";
+import { Box, Typography, Paper, Select, MenuItem, FormControl, InputLabel, SelectChangeEvent, Chip, LinearProgress } from "@mui/material";
 import { GameState, GameAction } from "../hooks/useGameReducer";
+import { motion } from "framer-motion";
+import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import BoltIcon from '@mui/icons-material/Bolt';
+import StarIcon from '@mui/icons-material/Star';
 
 const THEMES = [
   'All',
@@ -23,7 +28,23 @@ interface ScorePanelProps {
 }
 
 export default function ScorePanel({ state, dispatch }: ScorePanelProps) {
-  const { score, streak, bestStreak, currentTheme } = state;
+  const { 
+    score, 
+    streak, 
+    bestStreak, 
+    currentTheme,
+    comboMultiplier,
+    perfectStreak,
+    totalPuzzles,
+    achievements,
+    timeStarted,
+    phase
+  } = state;
+  
+  // Calculate elapsed time
+  const elapsedTime = timeStarted && phase === 'guessing' 
+    ? Math.floor((Date.now() - timeStarted) / 1000)
+    : 0;
 
   const handleThemeChange = (event: SelectChangeEvent<string>) => {
     const theme = event.target.value === 'All' ? null : event.target.value;
@@ -32,20 +53,107 @@ export default function ScorePanel({ state, dispatch }: ScorePanelProps) {
 
   return (
     <Paper elevation={3} sx={{ p: 2, borderRadius: 2, textAlign: 'center' }}>
-      <Typography variant="h4" gutterBottom>Score</Typography>
-      <Box sx={{ display: 'flex', justifyContent: 'space-around', mb: 3 }}>
+      {/* Score Header with animation */}
+      <motion.div
+        key={score}
+        initial={{ scale: 1 }}
+        animate={{ scale: [1, 1.1, 1] }}
+        transition={{ duration: 0.3 }}
+      >
+        <Typography variant="h3" gutterBottom fontWeight="bold">
+          {score.toLocaleString()}
+        </Typography>
+      </motion.div>
+      
+      {/* Combo Multiplier */}
+      {comboMultiplier > 1 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Chip
+            icon={<LocalFireDepartmentIcon />}
+            label={`${comboMultiplier.toFixed(1)}x Combo!`}
+            color="warning"
+            size="small"
+            sx={{ mb: 2, fontWeight: 'bold' }}
+          />
+        </motion.div>
+      )}
+      
+      {/* Streak Stats */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-around', mb: 2 }}>
         <Box>
-          <Typography variant="caption" color="text.secondary">Streak</Typography>
-          <Typography variant="h4" color={streak > 0 ? "primary" : "text.primary"}>{streak}</Typography>
+          <Typography variant="caption" color="text.secondary">Current Streak</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {streak >= 3 && <LocalFireDepartmentIcon sx={{ fontSize: 20, color: 'orange', mr: 0.5 }} />}
+            <Typography variant="h4" color={streak > 0 ? "primary" : "text.primary"}>
+              {streak}
+            </Typography>
+          </Box>
         </Box>
         <Box>
-          <Typography variant="caption" color="text.secondary">Best</Typography>
+          <Typography variant="caption" color="text.secondary">Best Streak</Typography>
           <Typography variant="h5">{bestStreak}</Typography>
         </Box>
       </Box>
+      
+      {/* Perfect Streak Indicator */}
+      {perfectStreak > 0 && (
+        <Box sx={{ mb: 2 }}>
+          <Chip
+            icon={<StarIcon />}
+            label={`${perfectStreak} Perfect${perfectStreak > 1 ? 's' : ''} in a row!`}
+            color="secondary"
+            size="small"
+            sx={{ fontWeight: 'bold' }}
+          />
+        </Box>
+      )}
+      
+      {/* Timer (only show during guessing) */}
+      {phase === 'guessing' && elapsedTime < 30 && (
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="caption" color="text.secondary">Time</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {elapsedTime < 10 && <BoltIcon sx={{ fontSize: 20, color: 'lightblue', mr: 0.5 }} />}
+            <Typography variant="h6" color={elapsedTime < 10 ? "info.main" : elapsedTime < 20 ? "warning.main" : "text.primary"}>
+              {elapsedTime}s
+            </Typography>
+          </Box>
+          {elapsedTime < 10 && (
+            <Typography variant="caption" color="info.main">Speed bonus active!</Typography>
+          )}
+        </Box>
+      )}
+      
+      {/* Progress Stats */}
       <Box sx={{ borderTop: '1px solid #404040', pt: 2, mb: 2 }}>
-        <Typography variant="caption" color="text.secondary">Total Score</Typography>
-        <Typography variant="h5">{score}</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="caption" color="text.secondary">Puzzles Solved</Typography>
+          <Typography variant="body2" fontWeight="bold">{totalPuzzles}</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="caption" color="text.secondary">Achievements</Typography>
+          <Typography variant="body2" fontWeight="bold">
+            <EmojiEventsIcon sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5, color: 'gold' }} />
+            {achievements.length}
+          </Typography>
+        </Box>
+        
+        {/* Progress to next milestone */}
+        {totalPuzzles < 100 && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="caption" color="text.secondary">
+              Progress to {totalPuzzles < 10 ? 10 : totalPuzzles < 50 ? 50 : 100} puzzles
+            </Typography>
+            <LinearProgress 
+              variant="determinate" 
+              value={totalPuzzles < 10 ? (totalPuzzles / 10) * 100 : totalPuzzles < 50 ? (totalPuzzles / 50) * 100 : (totalPuzzles / 100) * 100}
+              sx={{ mt: 0.5, height: 6, borderRadius: 3 }}
+            />
+          </Box>
+        )}
       </Box>
 
       <FormControl fullWidth>

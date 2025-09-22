@@ -1,9 +1,16 @@
 "use client";
 
 import React from "react";
-import { AppBar, Toolbar, Typography, Box } from "@mui/material";
+import { AppBar, Toolbar, Typography, IconButton } from "@mui/material";
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-export default function Header() {
+interface HeaderProps {
+  onBackClick?: () => void;
+  showBackButton?: boolean;
+  title?: string;
+}
+
+export default function Header({ onBackClick, showBackButton = false, title = "Eval Guesser" }: HeaderProps = {}) {
   return (
     <AppBar
       position="static"
@@ -14,8 +21,19 @@ export default function Header() {
       }}
     >
       <Toolbar>
+        {showBackButton && (
+          <IconButton
+            edge="start"
+            color="inherit"
+            onClick={onBackClick}
+            sx={{ mr: 2 }}
+            title="Back to Menu (Esc)"
+          >
+            <ArrowBackIcon />
+          </IconButton>
+        )}
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          Eval Guesser
+          {title}
         </Typography>
       </Toolbar>
     </AppBar>
