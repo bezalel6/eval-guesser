@@ -1,4 +1,10 @@
 
+import type { Metadata } from "next";
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import EmotionCacheProvider from "./emotion";
+import theme from "./theme";
+import "./globals.css";
 import { StockfishProvider } from "./lib/stockfish-engine";
 
 export const metadata: Metadata = {

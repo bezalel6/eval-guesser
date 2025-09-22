@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Box, CircularProgress } from '@mui/material';

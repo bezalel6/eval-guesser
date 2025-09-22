@@ -86,33 +86,6 @@ const AnalysisBoard = React.memo(function AnalysisBoard({
     }
   };
 
-  const playMoveSound = (moveSuccess: boolean, fen: string, from: string, to: string, promotion?: string) => {
-    if (!moveSuccess) {
-      playSound('illegal');
-      return;
-    }
-    try {
-      const chess = new Chess(fen);
-      const move = chess.move({
-        from: from as string,
-        to: to as string,
-        promotion: promotion as 'q' | 'r' | 'b' | 'n' | undefined
-      });
-      
-      if (move) {
-        const moveSound = getMoveSound({
-          captured: move.captured !== undefined,
-          castling: move.flags.includes('k') || move.flags.includes('q'),
-          check: chess.inCheck(),
-          promotion: move.flags.includes('p')
-        });
-        playSound(moveSound);
-      }
-    } catch (soundError) {
-      console.warn('Error playing move sound:', soundError);
-    }
-  };
-
   const handleMoveWithSound = useCallback((from: Key, to: Key, promotion?: string) => {
     if (!mountedRef.current) return;
     
