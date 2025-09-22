@@ -15,6 +15,7 @@ import type { Key } from 'chessground/types';
 import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
+import '../styles/lichess-board.css';
 import { Chess, Square } from 'chess.js';
 import { playSound, getMoveSound } from '../lib/global-sounds';
 

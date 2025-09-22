@@ -36,11 +36,12 @@ interface AnalysisSidebarProps {
 
 interface AnalysisState {
   depth: number;
-  evaluation: { type: 'cp' | 'mate'; value: number } | null;
+  evaluation: { type: 'cp' | 'mate'; value: number; stale?: boolean } | null;
   lines: AnalysisLine[];
   engineLines: Map<number, EngineInfo>;
   error: string | null;
   isLoading: boolean;
+  isCalculating?: boolean;
 }
 
 export default function AnalysisSidebar({
@@ -75,42 +76,61 @@ export default function AnalysisSidebar({
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
-  // Debounced analysis starter
-  const debouncedStartAnalysis = useCallback((fenToAnalyze: string) => {
-    // Clear existing debounce timer
+  // Immediate analysis starter (no debouncing for maximum responsiveness)
+  const startAnalysisImmediately = useCallback((fenToAnalyze: string) => {
+    // Stop any pending operations
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
     }
 
-    // Cancel any existing analysis
+    // Cancel any existing analysis immediately
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
+    
+    // Stop the engine's current analysis IMMEDIATELY
+    if (engine) {
+      engine.stop();
+    }
 
-    // Set loading state immediately
+    if (!engine || !isInitialized || !analyzing) {
+      setAnalysisState(prev => ({ ...prev, isLoading: false }));
+      return;
+    }
+
+    // Set loading state immediately with visual feedback
     setAnalysisState(prev => ({
       ...prev,
       isLoading: true,
-      error: null
+      error: null,
+      // Clear old lines immediately for new position
+      lines: [],
+      engineLines: new Map(),
+      // Show faded evaluation while calculating
+      evaluation: prev.evaluation ? { ...prev.evaluation, stale: true } : null
     }));
 
-    // Debounce for 300ms
-    debounceTimerRef.current = setTimeout(async () => {
-      if (!engine || !isInitialized || !analyzing) {
-        setAnalysisState(prev => ({ ...prev, isLoading: false }));
-        return;
-      }
+    // Create new abort controller and request ID
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    const requestId = generateRequestId();
+    analysisRequestIdRef.current = requestId;
+    currentFenRef.current = fenToAnalyze;
 
-      // Create new abort controller and request ID
-      const abortController = new AbortController();
-      abortControllerRef.current = abortController;
-      const requestId = generateRequestId();
-      analysisRequestIdRef.current = requestId;
-      currentFenRef.current = fenToAnalyze;
-
+    // Start analysis immediately without any delay
+    (async () => {
       try {
         // Start analysis with comprehensive error handling
         await engine.analyze(fenToAnalyze, 25);
+        
+        // Mark that we're now calculating (not just loading)
+        if (analysisRequestIdRef.current === requestId) {
+          setAnalysisState(prev => ({
+            ...prev,
+            isCalculating: true
+          }));
+        }
       } catch (error) {
         // Only handle error if this request is still current
         if (analysisRequestIdRef.current === requestId && !abortController.signal.aborted) {
@@ -135,33 +155,24 @@ export default function AnalysisSidebar({
           setAnalysisState(prev => ({
             ...prev,
             error: errorMessage,
-            isLoading: false
+            isLoading: false,
+            isCalculating: false
           }));
         }
       }
-    }, 300);
+    })();
   }, [engine, isInitialized, analyzing, generateRequestId]);
 
-  // Effect to handle FEN changes with debouncing
+  // Effect to handle FEN changes - IMMEDIATE analysis
   useEffect(() => {
     if (!fen || fen === currentFenRef.current) {
       return;
     }
 
-    // Reset analysis state for new position
-    setAnalysisState({
-      depth: 0,
-      evaluation: null,
-      lines: [],
-      engineLines: new Map(),
-      error: null,
-      isLoading: false
-    });
-
     if (analyzing) {
-      debouncedStartAnalysis(fen);
+      startAnalysisImmediately(fen);
     }
-  }, [fen, analyzing, debouncedStartAnalysis]);
+  }, [fen, analyzing, startAnalysisImmediately]);
 
   // Effect to start/stop analysis
   useEffect(() => {
@@ -172,7 +183,7 @@ export default function AnalysisSidebar({
     if (analyzing && fen) {
       // Start analysis if not already running for this FEN
       if (currentFenRef.current !== fen) {
-        debouncedStartAnalysis(fen);
+        startAnalysisImmediately(fen);
       }
     } else {
       // Stop analysis
@@ -182,7 +193,7 @@ export default function AnalysisSidebar({
       }
       setAnalysisState(prev => ({ ...prev, isLoading: false }));
     }
-  }, [analyzing, engine, isInitialized, fen, debouncedStartAnalysis]);
+  }, [analyzing, engine, isInitialized, fen, startAnalysisImmediately]);
 
   // Subscribe to engine updates with request validation
   useEffect(() => {
@@ -253,6 +264,7 @@ export default function AnalysisSidebar({
               depth: newDepth,
               evaluation: newEvaluation,
               isLoading: false,
+              isCalculating: false,
               error: null
             };
           } catch (error) {
@@ -544,14 +556,34 @@ export default function AnalysisSidebar({
 
         {/* Evaluation details */}
         <Box sx={{ flex: 1 }}>
-          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
+          <Typography 
+            variant="h4" 
+            sx={{ 
+              fontWeight: 'bold', 
+              mb: 1,
+              opacity: analysisState.evaluation?.stale ? 0.5 : 1,
+              transition: 'opacity 0.2s'
+            }}
+          >
             {analysisState.evaluation ? formatEval(analysisState.evaluation) : '0.00'}
           </Typography>
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <MemoryIcon fontSize="small" />
+            <MemoryIcon 
+              fontSize="small" 
+              sx={{ 
+                animation: analysisState.isLoading ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                '@keyframes pulse': {
+                  '0%': { opacity: 1 },
+                  '50%': { opacity: 0.4 },
+                  '100%': { opacity: 1 }
+                }
+              }}
+            />
             <Typography variant="body2">
-              Depth: {analysisState.depth}/25
+              {analysisState.isLoading && analysisState.depth === 0 
+                ? 'Starting...' 
+                : `Depth: ${analysisState.depth}/25`}
             </Typography>
             <IconButton 
               size="small" 
@@ -563,11 +595,18 @@ export default function AnalysisSidebar({
             </IconButton>
           </Box>
           
-          {(analyzing && analysisState.isLoading) && (
+          {analyzing && (
             <LinearProgress 
-              variant="determinate" 
+              variant={analysisState.depth === 0 ? "indeterminate" : "determinate"}
               value={(analysisState.depth / 25) * 100} 
-              sx={{ mt: 1 }}
+              sx={{ 
+                mt: 1,
+                height: 2,
+                backgroundColor: '#333',
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: analysisState.isLoading ? '#81b64c' : '#4caf50'
+                }
+              }}
             />
           )}
         </Box>
