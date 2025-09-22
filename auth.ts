@@ -1,20 +1,42 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
-import Lichess from "@/lib/auth-providers/lichess";
 
 export const { 
-  handlers, 
+  handlers,
   auth, 
   signIn, 
   signOut 
 } = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
-    Lichess({
+    {
+      id: "lichess",
+      name: "Lichess",
+      type: "oauth",
+      authorization: {
+        url: "https://lichess.org/oauth",
+        params: {
+          scope: "preference:read",
+        },
+      },
+      token: "https://lichess.org/api/token",
+      userinfo: "https://lichess.org/api/account",
+      client: {
+        token_endpoint_auth_method: "none",
+      },
+      checks: ["pkce", "state"],
+      profile(profile) {
+        return {
+          id: profile.id,
+          name: profile.username,
+          email: `${profile.username}@lichess.org`,
+          image: null,
+        };
+      },
       clientId: process.env.LICHESS_CLIENT_ID || "eval-rush-app",
-      clientSecret: "", // Lichess doesn't require a client secret
-    }),
+      clientSecret: "",
+    }
   ],
   callbacks: {
     async session({ session, user }) {
@@ -24,7 +46,6 @@ export const {
       return session;
     },
     async signIn({ account }) {
-      // Allow Lichess sign in
       return account?.provider === "lichess";
     },
   },
