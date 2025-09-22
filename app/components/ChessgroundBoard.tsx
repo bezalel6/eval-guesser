@@ -8,6 +8,8 @@ import type { Key } from "chessground/types";
 import "chessground/assets/chessground.base.css";
 import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
+import { playSound, getMoveSound } from "../lib/global-sounds";
+import { Chess } from "chess.js";
 
 interface ChessgroundBoardProps {
   fen: string;
@@ -44,6 +46,47 @@ export default function ChessgroundBoard({
 }: ChessgroundBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
+  const chessRef = useRef<Chess>(new Chess());
+
+  // Handle move with sound
+  const handleMoveWithSound = useCallback((from: Key, to: Key) => {
+    try {
+      // Load current position
+      chessRef.current.load(fen);
+      
+      // Try to make the move to determine its type
+      const move = chessRef.current.move({
+        from: from as string,
+        to: to as string,
+        promotion: 'q' // Default promotion
+      });
+      
+      if (move) {
+        // Play appropriate sound
+        const moveSound = getMoveSound({
+          captured: move.captured !== undefined,
+          castling: move.flags.includes('k') || move.flags.includes('q'),
+          check: chessRef.current.inCheck(),
+          promotion: move.flags.includes('p')
+        });
+        playSound(moveSound);
+        
+        // Undo the move since we only wanted to check its type
+        chessRef.current.undo();
+      } else {
+        // Illegal move
+        playSound('illegal');
+      }
+    } catch {
+      // Fallback to basic move sound
+      playSound('move');
+    }
+    
+    // Call the original onMove handler
+    if (onMove) {
+      onMove(from, to);
+    }
+  }, [fen, onMove]);
 
   // Initialize the board
   useEffect(() => {
@@ -63,7 +106,7 @@ export default function ChessgroundBoard({
         showDests: true,
         dests: movable.dests,
         events: {
-          after: onMove,
+          after: handleMoveWithSound,
         },
       },
       premovable,
@@ -78,7 +121,7 @@ export default function ChessgroundBoard({
         enabled: true,
       },
       events: {
-        move: onMove,
+        move: handleMoveWithSound,
       },
       animation: {
         enabled: true,
@@ -91,7 +134,7 @@ export default function ChessgroundBoard({
     return () => {
       apiRef.current?.destroy();
     };
-  }, []); // Only initialize once
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update FEN and check status when they change
   useEffect(() => {
@@ -111,7 +154,7 @@ export default function ChessgroundBoard({
           showDests: true,
           dests: movable.dests,
           events: {
-            after: onMove,
+            after: handleMoveWithSound,
           },
         },
         draggable: {
@@ -119,7 +162,7 @@ export default function ChessgroundBoard({
         },
       });
     }
-  }, [viewOnly, allowDragging, movable, onMove]);
+  }, [viewOnly, allowDragging, movable, handleMoveWithSound]);
 
   // Update orientation
   useEffect(() => {

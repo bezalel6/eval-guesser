@@ -10,6 +10,7 @@ import ResultsModal from "./ResultsModal";
 import BestMoveChallenge from "./BestMoveChallenge";
 import AchievementToast from "./AchievementToast";
 import { Box } from "@mui/material";
+import { playSound, getEvalResultSound } from "../lib/global-sounds";
 
 interface GameProps {
   initialPuzzle: Puzzle;
@@ -37,6 +38,7 @@ export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu }:
   };
 
   const handleGuess = () => {
+    playSound('click');
     dispatch({ type: 'GUESS_SUBMITTED' });
     fetchSolution(); // Fetch solution after guess is submitted
   };
@@ -82,6 +84,30 @@ export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu }:
       onUpdateHighScore(state.score);
     }
   }, [state.score, onUpdateHighScore]);
+
+  // Play sounds based on game state changes
+  useEffect(() => {
+    if (state.phase === 'guessing' && state.puzzle.PuzzleId) {
+      // Play game start sound when new puzzle loads
+      playSound('gameStart');
+    }
+  }, [state.puzzle.PuzzleId, state.phase]);
+
+  // Play result sound when score breakdown is calculated
+  useEffect(() => {
+    if (state.currentScoreBreakdown) {
+      const difference = Math.abs(state.userGuess - state.puzzle.Rating);
+      const resultSound = getEvalResultSound(difference, 100);
+      playSound(resultSound);
+    }
+  }, [state.currentScoreBreakdown, state.userGuess, state.puzzle.Rating]);
+
+  // Play achievement sound
+  useEffect(() => {
+    if (state.newAchievements.length > 0) {
+      playSound('achievement');
+    }
+  }, [state.newAchievements]);
 
   // Show best move challenge screen when in that phase
   if (state.phase === 'best-move-challenge') {

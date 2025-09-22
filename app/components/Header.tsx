@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { AppBar, Toolbar, Typography, IconButton } from "@mui/material";
+import { AppBar, Toolbar, Typography, IconButton, Box } from "@mui/material";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import SoundSettings from './SoundSettings';
 
 interface HeaderProps {
   onBackClick?: () => void;
@@ -35,6 +36,9 @@ export default function Header({ onBackClick, showBackButton = false, title = "E
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           {title}
         </Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <SoundSettings />
+        </Box>
       </Toolbar>
     </AppBar>
   );
