@@ -1,8 +1,6 @@
 "use client";
 
 import { useReducer } from 'react';
-import type { ScoreBreakdown, Achievement } from '../utils/scoring';
-import { calculateTotalScore, calculateStreakMultiplier, checkAchievements } from '../utils/scoring';
 
 const MAX_EVAL = 2000;
 const MATE_VALUE = 10000;
@@ -23,26 +21,10 @@ export interface GameState {
   currentFen: string;
   userGuess: number; // In centipawns
   sliderValue: number; // In centipawns
-  score: number;
-  streak: number;
-  bestStreak: number;
   phase: GamePhase;
   boardFlipped: boolean;
   hasInteractedWithEval: boolean;
   bestMoveShown: boolean;
-  currentTheme: string | null;
-  // New scoring properties
-  perfectStreak: number;
-  perfectCount: number;
-  bestMoveCount: number;
-  totalPuzzles: number;
-  currentScoreBreakdown: ScoreBreakdown | null;
-  achievements: Achievement[];
-  unlockedAchievementIds: string[];
-  newAchievements: Achievement[];
-  moveQuality: 'best' | 'good' | 'wrong' | null;
-  
-  comboMultiplier: number;
 }
 
 export type GameAction = 
@@ -57,36 +39,17 @@ export type GameAction =
   | { type: 'FLIP_BOARD' }
   | { type: 'SLIDER_CHANGE'; payload: number } // value
   | { type: 'GUESS_SUBMITTED' }
-  | { type: 'SHOW_BEST_MOVE' }
-  | { type: 'SET_THEME'; payload: string | null }
-  
-  | { type: 'ACHIEVEMENT_UNLOCKED'; payload: Achievement }
-  | { type: 'CLEAR_NEW_ACHIEVEMENTS' };
+  | { type: 'SHOW_BEST_MOVE' };
 
 const initialState: GameState = {
   puzzle: { PuzzleId: '', FEN: '', Moves: '', Rating: 0 },
   currentFen: '',
   userGuess: 0,
   sliderValue: 0,
-  score: 0,
-  streak: 0,
-  bestStreak: 0,
   phase: 'loading' as GamePhase,
   boardFlipped: false,
   hasInteractedWithEval: false,
   bestMoveShown: false,
-  currentTheme: null,
-  // New scoring properties
-  perfectStreak: 0,
-  perfectCount: 0,
-  bestMoveCount: 0,
-  totalPuzzles: 0,
-  currentScoreBreakdown: null,
-  achievements: [],
-  unlockedAchievementIds: [],
-  newAchievements: [],
-  moveQuality: null,
-  comboMultiplier: 1.0,
 };
 
 function gameReducer(state: GameState, action: GameAction): GameState {
@@ -106,14 +69,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         userGuess: 0,
         hasInteractedWithEval: false,
         bestMoveShown: false,
-        moveQuality: null,
-        currentScoreBreakdown: null,
-        newAchievements: [],
       };
     case 'FETCH_NEW_PUZZLE_FAILURE':
       return {
         ...state,
-        phase: 'guessing', // Or some error state
+        phase: 'guessing',
       };
     case 'FETCH_SOLUTION_START':
       return {
@@ -123,11 +83,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'FETCH_SOLUTION_FAILURE':
       return {
         ...state,
-        phase: 'guessing', // Go back to guessing if solution fails
+        phase: 'guessing',
       };
     case 'FETCH_SOLUTION_SUCCESS': {
       const newPuzzleState = { ...state.puzzle, Moves: action.payload.Moves };
-      // If we are showing the best move, we don't calculate score yet
+      
       if (state.bestMoveShown) {
         return {
           ...state,
@@ -136,57 +96,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
-      // Calculate score breakdown
-      const difference = Math.abs(state.userGuess - newPuzzleState.Rating);
-      const scoreBreakdown = calculateTotalScore(
-        difference,
-        state.streak,
-        state.perfectStreak,
-        null // No move quality yet
-      );
-      
-      // Update stats
-      const isCorrect = difference <= 150; // Within 1.5 pawns (more lenient)
-      const isPerfect = scoreBreakdown.accuracyTier === 'perfect';
-      
-      const newStreak = isCorrect ? state.streak + 1 : 0;
-      const newPerfectStreak = isPerfect ? state.perfectStreak + 1 : 0;
-      const newBestStreak = Math.max(state.bestStreak, newStreak);
-      const newPerfectCount = state.perfectCount + (isPerfect ? 1 : 0);
-      const newTotalPuzzles = state.totalPuzzles + 1;
-      const newScore = state.score + scoreBreakdown.totalPoints;
-      
-      // Update combo multiplier
-      const newComboMultiplier = calculateStreakMultiplier(newStreak);
-      
-      // Check for achievements
-      const achievementStats = {
-        perfectCount: newPerfectCount,
-        streak: newStreak,
-        perfectStreak: newPerfectStreak,
-        bestMoveCount: state.bestMoveCount,
-        totalPuzzles: newTotalPuzzles,
-        totalScore: newScore,
-      };
-      
-      const newUnlockedAchievements = checkAchievements(achievementStats, state.unlockedAchievementIds);
-      const allUnlockedIds = [...state.unlockedAchievementIds, ...newUnlockedAchievements.map(a => a.id)];
-
       return {
         ...state,
         puzzle: newPuzzleState,
-        score: newScore,
-        streak: newStreak,
-        bestStreak: newBestStreak,
-        perfectStreak: newPerfectStreak,
-        perfectCount: newPerfectCount,
-        totalPuzzles: newTotalPuzzles,
-        currentScoreBreakdown: scoreBreakdown,
-        phase: 'result', // Go to result phase
-        comboMultiplier: newComboMultiplier,
-        achievements: [...state.achievements, ...newUnlockedAchievements],
-        unlockedAchievementIds: allUnlockedIds,
-        newAchievements: newUnlockedAchievements,
+        phase: 'result',
       };
     }
     case 'MOVE_PIECE':
@@ -198,7 +111,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         currentFen: state.puzzle.FEN,
-        bestMoveShown: false, // Also reset here
+        bestMoveShown: false,
       };
     case 'FLIP_BOARD':
       return {
@@ -222,49 +135,25 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         bestMoveShown: true,
-        // The fetch logic will be handled in the component
         phase: state.puzzle.Moves ? state.phase : 'solution-loading',
-      };
-    case 'SET_THEME':
-      return {
-        ...state,
-        currentTheme: action.payload,
-      };
-    case 'ACHIEVEMENT_UNLOCKED':
-      return {
-        ...state,
-        achievements: [...state.achievements, action.payload],
-        unlockedAchievementIds: [...state.unlockedAchievementIds, action.payload.id],
-        newAchievements: [...state.newAchievements, action.payload],
-      };
-    case 'CLEAR_NEW_ACHIEVEMENTS':
-      return {
-        ...state,
-        newAchievements: [],
       };
     default:
       return state;
   }
 }
 
-export function useGameReducer(
-  initialPuzzle: Puzzle, 
-  initialScore: number = 0, 
-  initialStreak: number = 0
-) {
+export function useGameReducer(initialPuzzle: Puzzle) {
   const [state, dispatch] = useReducer(gameReducer, {
     ...initialState,
     puzzle: initialPuzzle,
     currentFen: initialPuzzle.FEN,
     phase: 'guessing' as GamePhase,
-    score: initialScore,
-    streak: initialStreak,
   });
 
   return { state, dispatch };
 }
 
-// Helper functions from old component, can be moved to a utils file later
+// Helper functions
 export const formatEval = (centipawns: number) => {
   if (Math.abs(centipawns) >= MATE_VALUE - 1000) {
     const mateIn = Math.sign(centipawns) * (MATE_VALUE - Math.abs(centipawns));

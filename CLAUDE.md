@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Eval Guesser is a chess position evaluation training application built with Next.js 15, React 19, and TypeScript. Players guess the computer evaluation of chess positions to improve their positional understanding.
+Eval Rush is a Chess.com-style Puzzle Rush application built with Next.js 15, React 19, and TypeScript. Players guess chess position evaluations in timed or survival modes to improve their positional understanding.
 
 ## Commands
 
 ### Development
 ```bash
-# Start development server with port protection
+# Start development server
 npm run dev
 
 # Build for production
@@ -40,161 +40,129 @@ node scripts/import-puzzles.js puzzles.csv
 
 ## Architecture
 
+### Authentication & Sessions
+- **NextAuth** with email magic links (no passwords)
+- Database-driven user sessions (PostgreSQL/Prisma)
+- JWT strategy for session management
+- User state tracked in database, not localStorage
+
 ### Route Structure
 
-- **`/`** - Landing page with navigation to game modes
-- **`/play/classic`** - Classic evaluation guessing game
-- **`/analysis`** - Position analysis with Stockfish engine
+#### Public Routes
+- **`/`** - Landing page (redirects to dashboard if authenticated)
+- **`/auth/signin`** - Email authentication page
+- **`/auth/verify`** - Magic link verification page
+- **`/analysis`** - Chess position analysis with Stockfish
 
-### Core Components (Consolidated)
+#### Protected Routes (requires authentication)
+- **`/dashboard`** - Mode selection and personal bests
+- **`/rush/[id]`** - Active Puzzle Rush game
+- **`/rush/[id]/results`** - Post-game review with position grid
+- **`/leaderboard`** - Global and personal rankings
 
-**Game** (`app/components/Game.tsx`)
-- Main game controller managing evaluation guessing flow
-- Handles game state through useGameReducer hook
-- Features:
-  - Auto-progression after 2 seconds on correct answer
-  - Sound effects for game events
-  - Achievement tracking and notifications
-  - Theme-based puzzle selection
+### Game Modes
 
-**ChessgroundBoard** (`app/components/ChessgroundBoard.tsx`)
-- Unified board component with game and analysis modes
-- Uses callback ref pattern for reliable DOM initialization
-- Supports:
-  - Game mode: Basic move display and interactions
-  - Analysis mode: Full engine analysis, keyboard navigation, promotion handling
-  - Arrow display for engine analysis lines
-  - Sound effects for different move types
+1. **5-Minute Rush**: Solve as many puzzles as possible in 5 minutes
+2. **Survival Mode**: No time limit, but one wrong answer ends the run
 
-**EvalBar** (`app/components/EvalBar.tsx`)
-- Unified evaluation bar with three modes:
-  - `display`: Static evaluation display for analysis
-  - `interactive`: Draggable bar for guessing (always shows value)
-  - `result`: Shows both user guess and actual evaluation
-- No interaction required to see evaluation value
-- Submit button always visible in interactive mode
-
-**BoardLayout** (`app/components/BoardLayout.tsx`)
-- Unified layout component with variants:
-  - `game`: Layout for game mode with score panel
-  - `analysis`: Layout for analysis mode with sidebar
-- Handles responsive design and component positioning
-- Clean composition pattern for child components
+### Core Components
 
 **BoardWrapper** (`app/components/BoardWrapper.tsx`)
-- Pure board state manager without layout responsibilities
-- Handles move logic, board flipping, position reset
-- Focused single responsibility
+- Pure board state manager
+- Handles moves, board flipping, position reset
+- Single responsibility principle
 
-### State Management
+**ChessgroundBoard** (`app/components/ChessgroundBoard.tsx`)
+- Chessground library wrapper
+- Supports game and analysis modes
+- Direct DOM manipulation for performance
 
-The app uses React state with performance optimizations:
-- Game state managed by useGameReducer hook
-- Callback refs for reliable DOM element access
-- Local state for UI interactions to prevent re-renders
-- Session persistence via localStorage for high scores
+**EvalBar** (`app/components/EvalBar.tsx`)
+- Three modes: display, interactive, result
+- Always shows evaluation value (no interaction required)
+- Clean visual feedback for submissions
 
-### API Architecture
+**ScorePanel** (`app/components/ScorePanel.tsx`)
+- Simplified display for evaluation results
+- Shows guess vs actual with analyze button
+- Clean, minimal UI
 
-Routes in `app/api/puzzles/` connect to SQLite database via Prisma ORM:
-- PuzzleService singleton manages database queries with caching
-- Endpoints: `/random`, `/by-rating`, `/by-theme`, `/stats`, `/[id]`, `/[id]/solution`
-- Random puzzle endpoint supports `?includeSolution=true` parameter
-- Efficient random puzzle selection using OFFSET with cached count
+### Database Schema
 
-### Styling Architecture
+```prisma
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  rushSessions  RushSession[]
+}
 
-- Dark mode theme with CSS variables in `globals.css`
-- Material-UI components for controls
-- Chessground styles imported directly
-- Unified board and eval bar design
-- Responsive layouts with flexbox
+model RushSession {
+  id        String        @id @default(cuid())
+  userId    String
+  mode      RushMode      // FIVE_MINUTE or SURVIVAL
+  score     Int           // Number of puzzles solved
+  strikes   Int          // Wrong answers (configurable)
+  attempts  RushAttempt[]
+}
 
-## Key Implementation Details
+model RushAttempt {
+  id         String    @id @default(cuid())
+  sessionId  String
+  puzzleId   String
+  userGuess  Int       // In centipawns
+  actualEval Int
+  isCorrect  Boolean
+}
+```
 
-### Recent Architectural Improvements
+### Configuration (`lib/game-config.ts`)
 
-1. **Component Consolidation (40% reduction)**:
-   - Merged 3 eval components into unified EvalBar
-   - Merged 3 layout components into unified BoardLayout
-   - Merged 2 error boundaries into single ErrorBoundary
-   - Enhanced ChessgroundBoard with analysis mode support
-   - Removed unnecessary abstractions and wrapper components
+```typescript
+EVAL_THRESHOLD: 400     // 4 pawns tolerance
+MAX_STRIKES: 0          // Instant fail on wrong (configurable)
+FIVE_MINUTE_TIME: 300000 // 5 minutes in milliseconds
+```
 
-2. **Proper Navigation Pattern**:
-   - Homepage is pure landing page without puzzle fetching
-   - Game modes use dedicated routes (`/play/classic`)
-   - Clean separation between navigation and game logic
-   - Follows Next.js routing conventions
+### Key Implementation Details
 
-3. **Reliable Board Initialization**:
-   - Callback ref pattern ensures DOM element exists
-   - Proper cleanup on unmount
-   - Error handling for Chessground initialization
-   - Safe drawable configuration
+#### Pass/Fail Rules
+- Must guess correct side (sign)
+- Must be within threshold (default 400 centipawns)
+- Wrong side = instant fail regardless of threshold
 
-### Performance Optimizations
+#### Progressive Difficulty
+- Base rating: 1500
+- Increases by 25 rating points per puzzle solved
+- Fetches puzzles within ±200 rating range
 
-1. **Chessground over React-chessboard**: Direct DOM manipulation avoids React reconciliation
-2. **Callback refs over useRef**: Ensures DOM elements are ready before initialization
-3. **React.memo and useMemo**: Prevent unnecessary component re-renders
-4. **Route-based code splitting**: Homepage only 2.36 kB, game logic loaded on demand
-
-### Board Interaction Logic
-
-- Board allows moves only from original puzzle position
-- After any move (including premove), board becomes view-only
-- Reset button appears only when position is modified
-- Legal moves calculated via chess.js and passed to chessground
-- Promotion handling in analysis mode with dialog
-
-### Evaluation System
-
-- Evaluations in centipawns, displayed as decimal pawns (110 → 1.1)
-- **Streak threshold**: 150 centipawns (1.5 pawns) - more lenient
-- **Scoring tiers** (more generous):
-  - Perfect: 0-30 centipawns
-  - Excellent: 31-75 centipawns
-  - Great: 76-150 centipawns
-  - Good: 151-250 centipawns
-- Computer evaluation revealed only after submission
-
-### UI/UX Flow
-
-1. Board auto-orients to player to move
-2. **Eval bar always shows current value** (no interaction needed)
-3. Submit button always visible when ready
-4. After submission: shows actual eval, difference, auto-progresses in 2s
-5. Sound feedback for correct/incorrect based on 150cp threshold
+#### State Management
+- All game state in database (no localStorage for game data)
+- localStorage only for UI preferences (sound settings)
+- Clean URLs without query parameters
+- Session persistence through database
 
 ## Environment Variables
 
-```bash
-DATABASE_URL="file:./puzzles.db"
+```env
+# Database
+DATABASE_URL="postgresql://..."
+
+# NextAuth
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="generate-with-openssl"
+
+# Email Server (for magic links)
+EMAIL_SERVER_HOST="smtp.gmail.com"
+EMAIL_SERVER_PORT="587"
+EMAIL_SERVER_USER="email@gmail.com"
+EMAIL_SERVER_PASSWORD="app-password"
+EMAIL_FROM="noreply@evalrush.com"
 ```
 
-## Database Schema
+## Development Best Practices
 
-SQLite database with single `puzzles` table:
-- `PuzzleId` (primary key)
-- `FEN` - chess position
-- `Rating` - evaluation in centipawns
-- `Moves` - solution moves
-- `Themes`, `Popularity`, `NbPlays` - metadata
-- Indexed on Rating, Themes, and Popularity
-
-## Next.js 15 Specific Considerations
-
-- API route params must be awaited: `const { id } = await params`
-- Use `type` imports for types from external packages
-- ESLint configured with flat config format (eslint.config.mjs)
-- Client components properly separated from server-side logic
-- Prisma only used in API routes, never in client components
-
-## Development Tools
-
-- **react-scan**: Re-render visualization in development
-- **Prisma Studio**: Database GUI at `npx prisma studio`
-- **portio**: Port protection in dev script
-- **ESLint**: Configured for TypeScript and React
-- **Turbopack**: Fast bundler with `--turbo` flag
+1. **Database-First**: All game state in database, not localStorage
+2. **Clean URLs**: No state in URL parameters
+3. **Single Flow**: One unified game flow, no competing implementations
+4. **Type Safety**: Full TypeScript with Prisma-generated types
+5. **Performance**: Direct DOM manipulation for chess board
