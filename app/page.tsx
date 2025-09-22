@@ -1,38 +1,19 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useSession } from "next-auth/react";
+import React from "react";
 import { useRouter } from "next/navigation";
 import { 
   Container, 
   Paper, 
   Typography, 
   Button, 
-  Box,
-  CircularProgress
+  Box
 } from "@mui/material";
 import LoginIcon from '@mui/icons-material/Login';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import Header from "@/app/components/Header";
 
 export default function Page() {
-  const { data: session, status } = useSession();
   const router = useRouter();
-
-  useEffect(() => {
-    // If authenticated, redirect to dashboard
-    if (status === "authenticated") {
-      router.push("/dashboard");
-    }
-  }, [status, router]);
-
-  if (status === "loading") {
-    return (
-      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
-        <CircularProgress />
-      </Container>
-    );
-  }
 
   return (
     <>
@@ -70,8 +51,9 @@ export default function Page() {
               startIcon={<LoginIcon />}
               onClick={() => router.push("/auth/signin")}
               sx={{ minWidth: 200 }}
+              disabled
             >
-              Sign In to Play
+              Sign In (Setup Required)
             </Button>
             
             <Button
@@ -84,9 +66,15 @@ export default function Page() {
             </Button>
           </Box>
           
+          <Box sx={{ mt: 4, p: 2, bgcolor: 'warning.dark', borderRadius: 1 }}>
+            <Typography variant="body2" color="warning.contrastText">
+              Note: Authentication requires database setup. Configure PostgreSQL and email settings in .env.local
+            </Typography>
+          </Box>
+          
           <Box sx={{ mt: 6, pt: 4, borderTop: '1px solid', borderColor: 'divider' }}>
             <Typography variant="h6" gutterBottom>
-              Game Modes
+              Game Modes (Coming Soon)
             </Typography>
             
             <Box sx={{ display: 'flex', gap: 4, justifyContent: 'center', mt: 3 }}>

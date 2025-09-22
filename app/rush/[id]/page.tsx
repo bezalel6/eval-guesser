@@ -6,10 +6,8 @@ import {
   Container, 
   Paper, 
   Typography, 
-  Box, 
   LinearProgress,
-  Grid,
-  Button
+  Grid
 } from "@mui/material";
 import Header from "@/app/components/Header";
 import BoardWrapper from "@/app/components/BoardWrapper";
@@ -20,20 +18,22 @@ import { GAME_CONFIG } from "@/lib/game-config";
 
 interface RushSession {
   id: string;
+  userId: string;
   mode: 'FIVE_MINUTE' | 'SURVIVAL';
   score: number;
   strikes: number;
   isActive: boolean;
+  startedAt: Date;
+  endedAt?: Date;
 }
 
-export default function RushGamePage() {
+export default function RushPage() {
   const params = useParams();
   const router = useRouter();
   const sessionId = params.id as string;
-  
   const [session, setSession] = useState<RushSession | null>(null);
   const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number>(GAME_CONFIG.FIVE_MINUTE_TIME);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const startTimeRef = useRef<number>(Date.now());
@@ -46,60 +46,7 @@ export default function RushGamePage() {
     0
   );
 
-  // Fetch session and first puzzle
-  useEffect(() => {
-    fetchSession();
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [sessionId]);
-
-  // Timer for 5-minute mode
-  useEffect(() => {
-    if (session?.mode === 'FIVE_MINUTE' && session.isActive) {
-      startTimeRef.current = Date.now();
-      
-      timerRef.current = setInterval(() => {
-        const elapsed = Date.now() - startTimeRef.current;
-        const remaining = GAME_CONFIG.FIVE_MINUTE_TIME - elapsed;
-        
-        if (remaining <= 0) {
-          setTimeRemaining(0);
-          endSession();
-        } else {
-          setTimeRemaining(remaining);
-        }
-      }, 100);
-
-      return () => {
-        if (timerRef.current) clearInterval(timerRef.current);
-      };
-    }
-  }, [session]);
-
-  const fetchSession = async () => {
-    try {
-      const response = await fetch(`/api/rush/session?id=${sessionId}`);
-      if (!response.ok) throw new Error("Session not found");
-      
-      const sessionData = await response.json();
-      setSession(sessionData);
-      
-      if (sessionData.isActive) {
-        await fetchNextPuzzle(sessionData.score);
-      } else {
-        // Session ended, show results
-        router.push(`/rush/${sessionId}/results`);
-      }
-    } catch (error) {
-      console.error("Failed to fetch session:", error);
-      router.push("/dashboard");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchNextPuzzle = async (currentScore: number) => {
+  const fetchNextPuzzle = useCallback(async (currentScore: number) => {
     try {
       // Calculate target rating based on progress
       const targetRating = GAME_CONFIG.BASE_RATING + (currentScore * GAME_CONFIG.RATING_INCREMENT_PER_PUZZLE);
@@ -129,7 +76,42 @@ export default function RushGamePage() {
     } catch (error) {
       console.error("Failed to fetch puzzle:", error);
     }
-  };
+  }, [dispatch]);
+
+  const endSession = useCallback(async () => {
+    try {
+      await fetch("/api/rush/session", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, action: "end" }),
+      });
+      router.push(`/rush/${sessionId}/results`);
+    } catch (error) {
+      console.error("Failed to end session:", error);
+    }
+  }, [sessionId, router]);
+
+  const fetchSession = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/rush/session?id=${sessionId}`);
+      if (!response.ok) throw new Error("Session not found");
+      
+      const sessionData = await response.json();
+      setSession(sessionData);
+      
+      if (sessionData.isActive) {
+        await fetchNextPuzzle(sessionData.score);
+      } else {
+        // Session ended, show results
+        router.push(`/rush/${sessionId}/results`);
+      }
+    } catch (error) {
+      console.error("Failed to fetch session:", error);
+      router.push("/dashboard");
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionId, router, fetchNextPuzzle]);
 
   const handleGuess = useCallback(async () => {
     if (!puzzle || !session || isSubmitting) return;
@@ -168,73 +150,109 @@ export default function RushGamePage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [puzzle, session, state.sliderValue, sessionId, router, isSubmitting]);
+  }, [puzzle, session, state.sliderValue, sessionId, router, isSubmitting, fetchNextPuzzle]);
 
-  const endSession = async () => {
-    try {
-      await fetch("/api/rush/session", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId }),
-      });
-      router.push(`/rush/${sessionId}/results`);
-    } catch (error) {
-      console.error("Failed to end session:", error);
+  // Fetch session and first puzzle
+  useEffect(() => {
+    fetchSession();
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [fetchSession]);
+
+  // Timer for 5-minute mode
+  useEffect(() => {
+    if (session?.mode === 'FIVE_MINUTE' && session.isActive) {
+      startTimeRef.current = Date.now();
+      
+      timerRef.current = setInterval(() => {
+        const elapsed = Date.now() - startTimeRef.current;
+        const remaining = GAME_CONFIG.FIVE_MINUTE_TIME - elapsed;
+        
+        if (remaining <= 0) {
+          setTimeRemaining(0);
+          endSession();
+        } else {
+          setTimeRemaining(remaining);
+        }
+      }, 100);
+
+      return () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+      };
     }
-  };
+  }, [session, endSession]);
 
-  const formatTime = (ms: number) => {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  if (loading || !puzzle || !session) {
+  if (loading) {
     return (
-      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
-        <LinearProgress />
-      </Container>
+      <>
+        <Header title="Puzzle Rush" />
+        <Container maxWidth="lg" sx={{ mt: 4 }}>
+          <Paper sx={{ p: 4, textAlign: 'center' }}>
+            <Typography>Loading session...</Typography>
+          </Paper>
+        </Container>
+      </>
+    );
+  }
+
+  if (!session || !puzzle) {
+    return (
+      <>
+        <Header title="Puzzle Rush" />
+        <Container maxWidth="lg" sx={{ mt: 4 }}>
+          <Paper sx={{ p: 4, textAlign: 'center' }}>
+            <Typography>Failed to load session</Typography>
+          </Paper>
+        </Container>
+      </>
     );
   }
 
   return (
     <>
-      <Header title="Puzzle Rush" showBackButton onBackClick={() => router.push("/dashboard")} />
-      
-      <Container maxWidth="lg" sx={{ mt: 2 }}>
-        {/* Status Bar */}
-        <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
-          <Grid container alignItems="center" spacing={2}>
-            <Grid item xs>
-              <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                {session.score} puzzles solved
-              </Typography>
-            </Grid>
-            
-            {session.mode === 'FIVE_MINUTE' && timeRemaining !== null && (
-              <Grid item>
-                <Typography variant="h5" color={timeRemaining < 30000 ? 'error' : 'text.primary'}>
-                  {formatTime(timeRemaining)}
-                </Typography>
-              </Grid>
-            )}
-          </Grid>
+      <Header title="Puzzle Rush" />
+      <Container maxWidth="xl" sx={{ mt: 4 }}>
+        {/* Progress bar for 5-minute mode */}
+        {session.mode === 'FIVE_MINUTE' && (
+          <LinearProgress 
+            variant="determinate" 
+            value={(timeRemaining / GAME_CONFIG.FIVE_MINUTE_TIME) * 100}
+            sx={{ mb: 2, height: 8 }}
+          />
+        )}
+
+        {/* Stats bar */}
+        <Paper sx={{ p: 2, mb: 2, display: 'flex', justifyContent: 'space-between' }}>
+          <Typography variant="h6">Score: {session.score}</Typography>
+          {session.mode === 'SURVIVAL' && (
+            <Typography variant="h6">
+              Strikes: {session.strikes}/{GAME_CONFIG.MAX_STRIKES || 3}
+            </Typography>
+          )}
+          {session.mode === 'FIVE_MINUTE' && (
+            <Typography variant="h6">
+              Time: {Math.floor(timeRemaining / 60000)}:{String(Math.floor((timeRemaining % 60000) / 1000)).padStart(2, '0')}
+            </Typography>
+          )}
         </Paper>
 
-        {/* Game Board */}
+        {/* Game area */}
         <Grid container spacing={2}>
           <Grid item xs={12} md={8}>
-            <BoardWrapper state={state} dispatch={dispatch} />
+            <BoardWrapper 
+              state={state}
+              dispatch={dispatch}
+            />
           </Grid>
-          
           <Grid item xs={12} md={4}>
             <EvalBar
-              mode="interactive"
-              value={state.sliderValue}
-              onChange={(value) => dispatch({ type: 'SLIDER_CHANGE', payload: value })}
+              state={state}
+              dispatch={dispatch}
               onSubmit={handleGuess}
-              disabled={isSubmitting}
+              isSubmitting={isSubmitting}
+              hideHeader
+              autoShowValue
             />
           </Grid>
         </Grid>

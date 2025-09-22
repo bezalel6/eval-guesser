@@ -32,7 +32,7 @@ export default function SignInPage() {
         // Redirect to verification page
         window.location.href = `/auth/verify?email=${encodeURIComponent(email)}`;
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred. Please try again.");
     } finally {
       setLoading(false);

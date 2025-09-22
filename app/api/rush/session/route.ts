@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 }
 
 // Get active session
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   const session = await auth();
   
   if (!session?.user?.id) {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { 
   Container, 
@@ -48,11 +48,7 @@ export default function ResultsPage() {
   const [results, setResults] = useState<RushResults | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchResults();
-  }, [sessionId]);
-
-  const fetchResults = async () => {
+  const fetchResults = useCallback(async () => {
     try {
       const response = await fetch(`/api/rush/session/${sessionId}/results`);
       if (!response.ok) throw new Error("Results not found");
@@ -65,7 +61,11 @@ export default function ResultsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId, router]);
+
+  useEffect(() => {
+    fetchResults();
+  }, [fetchResults]);
 
   const openAnalysis = (puzzleId: string, fen: string) => {
     window.open(`/analysis?fen=${encodeURIComponent(fen)}`, '_blank');

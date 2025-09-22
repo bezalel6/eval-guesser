@@ -55,7 +55,12 @@ export async function POST(req: NextRequest) {
     });
 
     // Update session
-    const updatedData: any = {};
+    const updatedData: {
+      score?: number;
+      strikes?: number;
+      isActive?: boolean;
+      endedAt?: Date;
+    } = {};
     
     if (isCorrect) {
       updatedData.score = rushSession.score + 1;

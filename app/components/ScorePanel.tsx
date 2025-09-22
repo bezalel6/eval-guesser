@@ -8,10 +8,10 @@ import { useRouter } from 'next/navigation';
 
 interface ScorePanelProps {
   state: GameState;
-  dispatch: React.Dispatch<GameAction>;
+  dispatch?: React.Dispatch<GameAction>;
 }
 
-export default function ScorePanel({ state, dispatch }: ScorePanelProps) {
+export default function ScorePanel({ state }: ScorePanelProps) {
   const { 
     phase,
     puzzle,
