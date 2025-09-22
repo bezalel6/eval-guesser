@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { 
   Box, 
   Typography, 
@@ -11,12 +11,14 @@ import {
   ListItem,
   ListItemButton,
   Chip,
-  IconButton
+  IconButton,
+  Alert
 } from '@mui/material';
 import MemoryIcon from '@mui/icons-material/Memory';
 import StopIcon from '@mui/icons-material/Stop';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import { stockfishEngine, type AnalysisLine, type EngineInfo } from '../lib/stockfish-engine';
+import ErrorIcon from '@mui/icons-material/Error';
+import { useStockfish, type AnalysisLine, type EngineInfo } from '../lib/stockfish-engine';
 import { Chess } from 'chess.js';
 
 interface AnalysisSidebarProps {
@@ -39,17 +41,21 @@ export default function AnalysisSidebar({
   currentMoveIndex,
   onGoToMove
 }: AnalysisSidebarProps) {
+  const { engine, isInitialized, initializationError, isInitializing } = useStockfish();
   const [analyzing, setAnalyzing] = useState(true);
   const [depth, setDepth] = useState(0);
   const [evaluation, setEvaluation] = useState<{ type: 'cp' | 'mate'; value: number } | null>(null);
   const [lines, setLines] = useState<AnalysisLine[]>([]);
   const [engineLines, setEngineLines] = useState<Map<number, EngineInfo>>(new Map());
   const previousFenRef = useRef<string>('');
+  const infoCleanupRef = useRef<(() => void) | null>(null);
   
   // Start/stop analysis
   useEffect(() => {
-    if (!analyzing) {
-      stockfishEngine.stop();
+    if (!engine || !isInitialized || !analyzing) {
+      if (engine && isInitialized) {
+        engine.stop();
+      }
       return;
     }
 
@@ -64,12 +70,18 @@ export default function AnalysisSidebar({
       setEvaluation(null);
       
       // Start new analysis
-      stockfishEngine.analyze(fen, 25);
+      engine.analyze(fen, 25).catch(error => {
+        console.error('Analysis failed:', error);
+      });
     }
-  }, [fen, analyzing]);
+  }, [fen, analyzing, engine, isInitialized]);
 
   // Subscribe to engine updates
   useEffect(() => {
+    if (!engine || !isInitialized) {
+      return;
+    }
+
     const handleInfo = (info: EngineInfo) => {
       if (info.multipv) {
         setEngineLines(prev => {
@@ -83,26 +95,50 @@ export default function AnalysisSidebar({
           setDepth(info.depth);
           
           // Update evaluation from line 1
-          const chess = new Chess(fen);
-          const isWhiteTurn = chess.turn() === 'w';
-          const evalValue = info.score.value * (isWhiteTurn ? 1 : -1);
-          setEvaluation({
-            type: info.score.unit,
-            value: evalValue
-          });
+          try {
+            const chess = new Chess(fen);
+            const isWhiteTurn = chess.turn() === 'w';
+            const evalValue = info.score.value * (isWhiteTurn ? 1 : -1);
+            setEvaluation({
+              type: info.score.unit,
+              value: evalValue
+            });
+          } catch (error) {
+            console.error('Error updating evaluation:', error);
+          }
         }
       }
     };
 
-    stockfishEngine.onInfo(handleInfo);
+    // Clean up previous callbacks
+    if (infoCleanupRef.current) {
+      infoCleanupRef.current();
+    }
+
+    // Subscribe to engine updates
+    infoCleanupRef.current = engine.onInfo(handleInfo);
     
     // Set up MultiPV for 3 lines
-    stockfishEngine.setMultiPV(3);
+    engine.setMultiPV(3);
 
     return () => {
-      stockfishEngine.onInfo(handleInfo, true);
+      if (infoCleanupRef.current) {
+        infoCleanupRef.current();
+        infoCleanupRef.current = null;
+      }
     };
-  }, [fen]);
+  }, [engine, isInitialized, fen]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      const infoCleanup = infoCleanupRef.current;
+      
+      if (infoCleanup) {
+        infoCleanup();
+      }
+    };
+  }, []);
 
   // Convert engine lines to AnalysisLine format
   useEffect(() => {
@@ -182,9 +218,63 @@ export default function AnalysisSidebar({
     return 50 + (clampedEval / 20);
   };
 
-  const toggleAnalysis = () => {
+  const toggleAnalysis = useCallback(() => {
     setAnalyzing(!analyzing);
-  };
+  }, [analyzing]);
+
+  // Show error state
+  if (initializationError) {
+    return (
+      <Paper sx={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        backgroundColor: '#2a2a2a',
+        color: 'white',
+        p: 2
+      }}>
+        <Alert 
+          severity="error" 
+          icon={<ErrorIcon />}
+          sx={{ 
+            backgroundColor: '#d32f2f',
+            color: 'white',
+            mb: 2
+          }}
+        >
+          <Typography variant="subtitle2">Engine Initialization Failed</Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            {initializationError}
+          </Typography>
+        </Alert>
+        
+        <Typography variant="body2" sx={{ color: '#888' }}>
+          Analysis features are not available. Please refresh the page to retry.
+        </Typography>
+      </Paper>
+    );
+  }
+
+  // Show loading state
+  if (isInitializing || !isInitialized) {
+    return (
+      <Paper sx={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        backgroundColor: '#2a2a2a',
+        color: 'white',
+        p: 2,
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        <MemoryIcon sx={{ fontSize: 48, mb: 2, color: '#888' }} />
+        <Typography variant="h6" sx={{ mb: 1 }}>Initializing Engine</Typography>
+        <Typography variant="body2" sx={{ color: '#888', mb: 2 }}>Loading Stockfish...</Typography>
+        <LinearProgress sx={{ width: '100%' }} />
+      </Paper>
+    );
+  }
 
   return (
     <Paper sx={{ 

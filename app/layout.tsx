@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import theme from "./theme";
+import { StockfishProvider } from "./lib/stockfish-engine";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,12 +18,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <body>
-          <main>{children}</main>
-        </body>
-      </ThemeProvider>
+      <body>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <StockfishProvider>
+            <main>{children}</main>
+          </StockfishProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
