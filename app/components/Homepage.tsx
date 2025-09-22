@@ -90,13 +90,14 @@ export default function Homepage({
               justifyContent: "center"
             }}
           >
-            {/* Classic Mode Card */}
+            {/* Puzzle Streak Card (Lichess-style) */}
             <GameModeCard
-              title="Classic Mode"
-              description="Guess the exact evaluation. Test your precision."
+              title="Puzzle Streak"
+              description="Solve progressively harder puzzles. One wrong move ends the streak!"
               icon={<PsychologyIcon />}
               bestScore={classicBestScore}
               onPlay={onClassicPlay}
+              hideScore={true}
             />
 
             {/* Quick Think Mode Card */}

@@ -21,7 +21,8 @@ export default function Page() {
   }, []);
 
   const handleClassicPlay = () => {
-    router.push('/play/classic');
+    // Lichess-style route - go to /streak to start new streak
+    router.push('/streak');
   };
 
   const handleQuickThinkPlay = () => {

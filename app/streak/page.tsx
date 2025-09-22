@@ -4,13 +4,17 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Container, CircularProgress } from "@mui/material";
 
-export default function ClassicGameRedirect() {
+// Lichess-style /streak route that redirects to a random puzzle to start streak
+export default function StreakRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    // Fetch a random puzzle and redirect to it
-    const redirectToPuzzle = async () => {
+    const startNewStreak = async () => {
       try {
+        // Clear any existing streak session
+        localStorage.removeItem('evalGuesserStreak');
+        
+        // Fetch a random puzzle to start
         const response = await fetch('/api/puzzles/random?includeSolution=true');
         if (!response.ok) {
           throw new Error('Failed to fetch puzzle');
@@ -19,19 +23,18 @@ export default function ClassicGameRedirect() {
         const puzzle = await response.json();
         
         if (puzzle && puzzle.PuzzleId) {
-          // Redirect to the specific puzzle page
-          router.replace(`/play/classic/puzzle/${puzzle.PuzzleId}`);
+          // Redirect to clean training URL (Lichess pattern)
+          router.replace(`/training/${puzzle.PuzzleId}`);
         } else {
-          // Fallback to home if no puzzle found
           router.replace('/');
         }
       } catch (error) {
-        console.error('Failed to fetch initial puzzle:', error);
+        console.error('Failed to start streak:', error);
         router.replace('/');
       }
     };
 
-    redirectToPuzzle();
+    startNewStreak();
   }, [router]);
 
   return (

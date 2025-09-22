@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import { useGameReducer, Puzzle } from "../hooks/useGameReducer";
 import BoardLayout from "./BoardLayout";
 import ScorePanel from "./ScorePanel";
+import StreakPanel from "./StreakPanel";
 import BoardWrapper from "./BoardWrapper";
 import EvalBar from "./EvalBar";
 
@@ -11,29 +12,44 @@ import AchievementToast from "./AchievementToast";
 import { Box } from "@mui/material";
 import { playSound, getEvalResultSound } from "../lib/global-sounds";
 
+import type { StreakSession } from "../training/[id]/page";
+
 interface GameProps {
   initialPuzzle: Puzzle;
-  onUpdateHighScore?: (score: number) => void;
   onBackToMenu?: () => void;
+  onNextPuzzle?: () => void;
+  // Lichess-style props
+  streakSession?: StreakSession;
+  onSkip?: () => void;
+  onStateChange?: (streak: number, failed: boolean) => void;
+  strictMode?: boolean; // Lichess-style strict failure
+  // Legacy props (to be removed)
+  onUpdateHighScore?: (score: number) => void;
   initialScore?: number;
   initialStreak?: number;
   initialTheme?: string;
-  onStateChange?: (score: number, streak: number, theme?: string) => void;
-  onNextPuzzle?: () => void;
 }
 
 
 export default function Game({ 
   initialPuzzle, 
-  onUpdateHighScore, 
   onBackToMenu: _onBackToMenu,
+  onNextPuzzle,
+  streakSession,
+  onSkip,
+  onStateChange,
+  strictMode = false,
+  // Legacy props
+  onUpdateHighScore, 
   initialScore = 0,
   initialStreak = 0,
-  initialTheme,
-  onStateChange,
-  onNextPuzzle 
+  initialTheme
 }: GameProps) {
-  const { state, dispatch } = useGameReducer(initialPuzzle, initialScore, initialStreak);
+  // Use streak session if provided (Lichess mode), otherwise legacy
+  const actualScore = streakSession ? 0 : initialScore;
+  const actualStreak = streakSession ? streakSession.streak : initialStreak;
+  
+  const { state, dispatch } = useGameReducer(initialPuzzle, actualScore, actualStreak);
 
   const fetchSolution = async () => {
     if (state.puzzle.Moves) return; // Already have the solution
@@ -103,9 +119,20 @@ export default function Game({
   // Call onStateChange when state changes
   useEffect(() => {
     if (onStateChange) {
-      onStateChange(state.score, state.streak, state.currentTheme || undefined);
+      if (strictMode && streakSession) {
+        // Lichess mode - only report streak and failure
+        const failed = state.phase === 'result' && 
+          state.currentScoreBreakdown && 
+          Math.abs(state.userGuess - state.puzzle.Rating) > 100; // Strict 1 pawn threshold
+        onStateChange(state.streak, failed);
+      } else if (!strictMode) {
+        // Legacy mode with different signature - cast through unknown
+        const legacyHandler = onStateChange as unknown as (score: number, streak: number, theme?: string) => void;
+        legacyHandler(state.score, state.streak, state.currentTheme || undefined);
+      }
     }
-  }, [state.score, state.streak, state.currentTheme, onStateChange]);
+  }, [state.score, state.streak, state.currentTheme, state.phase, state.currentScoreBreakdown, 
+      state.userGuess, state.puzzle.Rating, onStateChange, strictMode, streakSession]);
 
   // Track high score
   useEffect(() => {
@@ -158,11 +185,26 @@ export default function Game({
 
   
   
+  // Determine if streak failed (Lichess mode)
+  const streakFailed = strictMode && state.phase === 'result' && 
+    Math.abs(state.userGuess - state.puzzle.Rating) > 100;
+
   return (
     <>
       <BoardLayout
         variant="game"
-        scorePanel={<ScorePanel state={state} dispatch={dispatch} />}
+        scorePanel={
+          strictMode && streakSession ? (
+            <StreakPanel 
+              session={streakSession}
+              onSkip={onSkip}
+              phase={state.phase}
+              failed={streakFailed}
+            />
+          ) : (
+            <ScorePanel state={state} dispatch={dispatch} />
+          )
+        }
         board={<BoardWrapper state={state} dispatch={dispatch} />}
         evalBar={
           <EvalBar
@@ -176,10 +218,12 @@ export default function Game({
         }
         controls={<Box sx={{ minHeight: 48 }} />}
       />
-      <AchievementToast 
-        achievements={state.newAchievements} 
-        onClose={() => dispatch({ type: 'CLEAR_NEW_ACHIEVEMENTS' })}
-      />
+      {!strictMode && (
+        <AchievementToast 
+          achievements={state.newAchievements} 
+          onClose={() => dispatch({ type: 'CLEAR_NEW_ACHIEVEMENTS' })}
+        />
+      )}
     </>
   );
 }
