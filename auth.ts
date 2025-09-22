@@ -1,14 +1,7 @@
 import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { prisma } from "@/lib/prisma";
+import type { NextAuthConfig } from "next-auth";
 
-export const { 
-  handlers,
-  auth, 
-  signIn, 
-  signOut 
-} = NextAuth({
-  adapter: PrismaAdapter(prisma),
+const config: NextAuthConfig = {
   providers: [
     {
       id: "lichess",
@@ -26,7 +19,7 @@ export const {
         token_endpoint_auth_method: "none",
       },
       checks: ["pkce", "state"],
-      profile(profile) {
+      profile(profile: any) {
         return {
           id: profile.id,
           name: profile.username,
@@ -39,21 +32,29 @@ export const {
     }
   ],
   callbacks: {
-    async session({ session, user }) {
-      if (session.user && user) {
-        session.user.id = user.id;
+    async jwt({ token, account, profile }) {
+      if (account && profile) {
+        token.id = profile.id;
+        token.username = profile.username;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (token) {
+        session.user.id = token.id as string;
+        session.user.name = token.username as string;
       }
       return session;
-    },
-    async signIn({ account }) {
-      return account?.provider === "lichess";
     },
   },
   pages: {
     signIn: "/auth/signin",
   },
   session: {
-    strategy: "database",
+    strategy: "jwt",
   },
+  secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
-});
+};
+
+export const { handlers, auth, signIn, signOut } = NextAuth(config);
