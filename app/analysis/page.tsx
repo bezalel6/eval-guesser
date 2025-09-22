@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Box, CircularProgress } from '@mui/material';
 import Header from '../components/Header';
@@ -10,21 +10,29 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import AnalysisErrorBoundary from '../components/AnalysisErrorBoundary';
 import { Chess } from 'chess.js';
 import type { AnalysisLine } from '../lib/stockfish-engine';
-import { useStockfish, StockfishProvider } from '../lib/stockfish-engine';
+import { useStockfish } from '../lib/stockfish-engine';
 
 function AnalysisContent() {
   const searchParams = useSearchParams();
   const initialFen = searchParams.get('fen') || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
   
-  const [currentFen, setCurrentFen] = useState(initialFen);
-  const [moveHistory, setMoveHistory] = useState<string[]>([]);
-  const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
-  const [boardFlipped, setBoardFlipped] = useState(false);
-  const [, setAnalysisLines] = useState<AnalysisLine[]>([]);
-  const [, setEvaluation] = useState<{ type: 'cp' | 'mate'; value: number } | null>(null);
-  const [, setAnalyzing] = useState(false);
-  const [, setDepth] = useState(0);
-  const [lastAnalysisError, setLastAnalysisError] = useState<string | null>(null);
+  // Group related state to reduce re-renders
+  const [gameState, setGameState] = useState({
+    currentFen: initialFen,
+    moveHistory: [] as string[],
+    currentMoveIndex: 0,
+    boardFlipped: false,
+    lastAnalysisError: null as string | null
+  });
+  
+  const [analysisData, setAnalysisData] = useState({
+    lines: [] as AnalysisLine[],
+    evaluation: null as { type: 'cp' | 'mate'; value: number } | null,
+    isAnalyzing: false,
+    depth: 0
+  });
+  
+  const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
 
   // Get Stockfish engine status for error boundary
   const { engine, isInitialized, initializationError, isInitializing } = useStockfish();
@@ -32,12 +40,12 @@ function AnalysisContent() {
   // Initialize board orientation based on turn
   useEffect(() => {
     const chess = new Chess(initialFen);
-    setBoardFlipped(chess.turn() === 'b');
+    setGameState(prev => ({ ...prev, boardFlipped: chess.turn() === 'b' }));
   }, [initialFen]);
 
-  const handleMove = (from: string, to: string, promotion?: string) => {
+  const handleMove = useCallback((from: string, to: string, promotion?: string) => {
     try {
-      const chess = new Chess(currentFen);
+      const chess = new Chess(gameState.currentFen);
       const move = chess.move({
         from,
         to,
@@ -45,69 +53,92 @@ function AnalysisContent() {
       });
 
       if (move) {
-        // Update FEN
-        setCurrentFen(chess.fen());
+        // Batch all state updates
+        setHoveredLineIndex(null);
         
-        // Update move history
-        const newHistory = [...moveHistory.slice(0, currentMoveIndex), move.san];
-        setMoveHistory(newHistory);
-        setCurrentMoveIndex(newHistory.length);
+        // Single state update for game state
+        const newHistory = [...gameState.moveHistory.slice(0, gameState.currentMoveIndex), move.san];
+        setGameState(prev => ({
+          ...prev,
+          currentFen: chess.fen(),
+          moveHistory: newHistory,
+          currentMoveIndex: newHistory.length,
+          lastAnalysisError: null
+        }));
         
-        // Clear any previous analysis errors
-        setLastAnalysisError(null);
+        // Clear analysis data in one update
+        setAnalysisData(prev => ({
+          ...prev,
+          lines: [],
+          evaluation: null
+        }));
         
         return true;
       }
       return false;
     } catch (error) {
       console.error('Error making move:', error);
-      setLastAnalysisError(error instanceof Error ? error.message : 'Invalid move');
+      setGameState(prev => ({
+        ...prev,
+        lastAnalysisError: error instanceof Error ? error.message : 'Invalid move'
+      }));
       return false;
     }
-  };
+  }, [gameState.currentFen, gameState.moveHistory, gameState.currentMoveIndex]);
 
-  const goToMove = (index: number) => {
-    if (index < 0 || index > moveHistory.length) return;
+  const goToMove = useCallback((index: number) => {
+    if (index < 0 || index > gameState.moveHistory.length) return;
     
     try {
       const chess = new Chess(initialFen);
       for (let i = 0; i < index; i++) {
-        chess.move(moveHistory[i]);
+        chess.move(gameState.moveHistory[i]);
       }
       
-      setCurrentFen(chess.fen());
-      setCurrentMoveIndex(index);
-      setLastAnalysisError(null);
+      // Batch update
+      setGameState(prev => ({
+        ...prev,
+        currentFen: chess.fen(),
+        currentMoveIndex: index,
+        lastAnalysisError: null
+      }));
     } catch (error) {
       console.error('Error navigating to move:', error);
-      setLastAnalysisError(error instanceof Error ? error.message : 'Navigation error');
+      setGameState(prev => ({
+        ...prev,
+        lastAnalysisError: error instanceof Error ? error.message : 'Navigation error'
+      }));
     }
-  };
+  }, [gameState.moveHistory, initialFen]);
 
-  const reset = () => {
-    setCurrentFen(initialFen);
-    setMoveHistory([]);
-    setCurrentMoveIndex(0);
-    setLastAnalysisError(null);
-  };
+  const reset = useCallback(() => {
+    // Single batched update
+    setGameState({
+      currentFen: initialFen,
+      moveHistory: [],
+      currentMoveIndex: 0,
+      boardFlipped: gameState.boardFlipped,
+      lastAnalysisError: null
+    });
+  }, [initialFen, gameState.boardFlipped]);
 
-  const flipBoard = () => {
-    setBoardFlipped(!boardFlipped);
-  };
+  const flipBoard = useCallback(() => {
+    setGameState(prev => ({ ...prev, boardFlipped: !prev.boardFlipped }));
+  }, []);
 
   // Error recovery handlers
-  const handleRetryAnalysis = () => {
-    setLastAnalysisError(null);
+  const handleRetryAnalysis = useCallback(() => {
+    setGameState(prev => ({ ...prev, lastAnalysisError: null }));
     // Force engine re-initialization if needed
     if (engine && !isInitialized) {
       window.location.reload();
     }
-  };
+  }, [engine, isInitialized]);
 
-  const handleContinueWithoutAnalysis = () => {
+  const handleContinueWithoutAnalysis = useCallback(() => {
     // Navigate back to main game
     window.history.back();
-  };
+  }, []);
 
   return (
     <AnalysisErrorBoundary
@@ -119,8 +150,8 @@ function AnalysisContent() {
         initializationError
       }}
       analysisContext={{
-        currentFen,
-        lastError: lastAnalysisError
+        currentFen: gameState.currentFen,
+        lastError: gameState.lastAnalysisError
       }}
     >
       <Box sx={{ 
@@ -131,7 +162,7 @@ function AnalysisContent() {
       }}>
         <ErrorBoundary
           enableRetry={true}
-          resetKeys={[currentFen]}
+          resetKeys={[gameState.currentFen]}
           resetOnPropsChange={true}
         >
           <Header 
@@ -159,18 +190,19 @@ function AnalysisContent() {
           }}>
             <ErrorBoundary
               enableRetry={true}
-              resetKeys={[currentFen, String(boardFlipped), currentMoveIndex]}
+              resetKeys={[gameState.currentFen, String(gameState.boardFlipped), gameState.currentMoveIndex]}
               resetOnPropsChange={true}
             >
               <AnalysisBoard
-                fen={currentFen}
+                fen={gameState.currentFen}
                 onMove={handleMove}
-                flipped={boardFlipped}
+                flipped={gameState.boardFlipped}
                 onFlip={flipBoard}
-                moveHistory={moveHistory}
-                currentMoveIndex={currentMoveIndex}
+                moveHistory={gameState.moveHistory}
+                currentMoveIndex={gameState.currentMoveIndex}
                 onGoToMove={goToMove}
                 onReset={reset}
+                hoveredLine={hoveredLineIndex !== null ? analysisData.lines[hoveredLineIndex] : null}
               />
             </ErrorBoundary>
           </Box>
@@ -185,20 +217,24 @@ function AnalysisContent() {
           }}>
             <ErrorBoundary
               enableRetry={true}
-              resetKeys={[currentFen, String(isInitialized)]}
+              resetKeys={[gameState.currentFen, String(isInitialized)]}
               resetOnPropsChange={true}
             >
               <AnalysisSidebar
-                fen={currentFen}
-                onAnalysisUpdate={(lines, evalResult, isAnalyzing, currentDepth) => {
-                  setAnalysisLines(lines);
-                  setEvaluation(evalResult);
-                  setAnalyzing(isAnalyzing);
-                  setDepth(currentDepth);
-                }}
-                moveHistory={moveHistory}
-                currentMoveIndex={currentMoveIndex}
+                fen={gameState.currentFen}
+                onAnalysisUpdate={useCallback((lines, evalResult, isAnalyzing, currentDepth) => {
+                  // Batch update all analysis data
+                  setAnalysisData({
+                    lines,
+                    evaluation: evalResult,
+                    isAnalyzing,
+                    depth: currentDepth
+                  });
+                }, [])}
+                moveHistory={gameState.moveHistory}
+                currentMoveIndex={gameState.currentMoveIndex}
                 onGoToMove={goToMove}
+                onLineHover={setHoveredLineIndex}
               />
             </ErrorBoundary>
           </Box>
@@ -210,27 +246,25 @@ function AnalysisContent() {
 
 export default function AnalysisPage() {
   return (
-    <StockfishProvider>
-      <ErrorBoundary
-        enableRetry={true}
-        onError={(error, errorInfo) => {
-          console.error('Top-level analysis page error:', error, errorInfo);
-        }}
-      >
-        <Suspense fallback={
-          <Box sx={{ 
-            height: '100vh', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            backgroundColor: '#1a1a1a'
-          }}>
-            <CircularProgress />
-          </Box>
-        }>
-          <AnalysisContent />
-        </Suspense>
-      </ErrorBoundary>
-    </StockfishProvider>
+    <ErrorBoundary
+      enableRetry={true}
+      onError={(error, errorInfo) => {
+        console.error('Top-level analysis page error:', error, errorInfo);
+      }}
+    >
+      <Suspense fallback={
+        <Box sx={{ 
+          height: '100vh', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          backgroundColor: '#1a1a1a'
+        }}>
+          <CircularProgress />
+        </Box>
+      }>
+        <AnalysisContent />
+      </Suspense>
+    </ErrorBoundary>
   );
 }

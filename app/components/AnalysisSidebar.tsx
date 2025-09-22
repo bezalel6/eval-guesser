@@ -32,6 +32,7 @@ interface AnalysisSidebarProps {
   moveHistory: string[];
   currentMoveIndex: number;
   onGoToMove: (index: number) => void;
+  onLineHover?: (lineIndex: number | null) => void;
 }
 
 interface AnalysisState {
@@ -49,7 +50,8 @@ export default function AnalysisSidebar({
   onAnalysisUpdate,
   moveHistory,
   currentMoveIndex,
-  onGoToMove
+  onGoToMove,
+  onLineHover
 }: AnalysisSidebarProps) {
   const { engine, isInitialized, initializationError, isInitializing } = useStockfish();
   const [analyzing, setAnalyzing] = useState(true);
@@ -63,12 +65,15 @@ export default function AnalysisSidebar({
     error: null,
     isLoading: false
   });
+  
+  // Use ref for latest state to prevent stale closures
+  const analysisStateRef = useRef(analysisState);
+  analysisStateRef.current = analysisState;
 
   // Request tracking to prevent race conditions
   const analysisRequestIdRef = useRef<string>('');
   const currentFenRef = useRef<string>('');
   const infoCleanupRef = useRef<(() => void) | null>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Generate unique request ID for each analysis
@@ -77,13 +82,7 @@ export default function AnalysisSidebar({
   }, []);
 
   // Immediate analysis starter (no debouncing for maximum responsiveness)
-  const startAnalysisImmediately = useCallback((fenToAnalyze: string) => {
-    // Stop any pending operations
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-
+  const startAnalysisImmediately = useCallback(async (fenToAnalyze: string) => {
     // Cancel any existing analysis immediately
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -91,7 +90,7 @@ export default function AnalysisSidebar({
     
     // Stop the engine's current analysis IMMEDIATELY
     if (engine) {
-      engine.stop();
+      await engine.stop();
     }
 
     if (!engine || !isInitialized || !analyzing) {
@@ -216,66 +215,73 @@ export default function AnalysisSidebar({
       }
 
       if (info.multipv) {
-        setAnalysisState(prev => {
-          // Double-check we're still on the same request
-          if (analysisRequestIdRef.current !== currentRequestId) {
-            return prev;
+        // Batch updates using ref to get latest state without causing re-renders
+        const currentState = analysisStateRef.current;
+        
+        // Double-check we're still on the same request
+        if (analysisRequestIdRef.current !== currentRequestId) {
+          return;
+        }
+
+        try {
+          const newEngineLines = new Map(currentState.engineLines);
+          newEngineLines.set(info.multipv, info);
+          
+          let newEvaluation = currentState.evaluation;
+          let newDepth = currentState.depth;
+          let shouldUpdate = false;
+
+          // Update depth and evaluation from line 1
+          if (info.multipv === 1) {
+            newDepth = info.depth;
+            shouldUpdate = true;
+            
+            try {
+              const chess = new Chess(currentFen);
+              const isWhiteTurn = chess.turn() === 'w';
+              
+              // Validate score data
+              if (!info.score || typeof info.score.value !== 'number') {
+                console.warn('Invalid score data received from engine:', info.score);
+                return;
+              }
+              
+              const evalValue = info.score.value * (isWhiteTurn ? 1 : -1);
+              newEvaluation = {
+                type: info.score.unit,
+                value: evalValue
+              };
+            } catch (error) {
+              console.error('Error updating evaluation:', error);
+              setAnalysisState(prev => ({
+                ...prev,
+                error: 'Invalid chess position received from engine',
+                isLoading: false
+              }));
+              return;
+            }
           }
 
-          try {
-            const newEngineLines = new Map(prev.engineLines);
-            newEngineLines.set(info.multipv, info);
-            
-            let newEvaluation = prev.evaluation;
-            let newDepth = prev.depth;
-
-            // Update depth and evaluation from line 1
-            if (info.multipv === 1) {
-              newDepth = info.depth;
-              
-              try {
-                const chess = new Chess(currentFen);
-                const isWhiteTurn = chess.turn() === 'w';
-                
-                // Validate score data
-                if (!info.score || typeof info.score.value !== 'number') {
-                  console.warn('Invalid score data received from engine:', info.score);
-                  return prev;
-                }
-                
-                const evalValue = info.score.value * (isWhiteTurn ? 1 : -1);
-                newEvaluation = {
-                  type: info.score.unit,
-                  value: evalValue
-                };
-              } catch (error) {
-                console.error('Error updating evaluation:', error);
-                return {
-                  ...prev,
-                  error: 'Invalid chess position received from engine',
-                  isLoading: false
-                };
-              }
-            }
-
-            return {
-              ...prev,
+          // Only update if we have meaningful changes
+          if (shouldUpdate || newEngineLines.size !== currentState.engineLines.size) {
+            setAnalysisState({
               engineLines: newEngineLines,
               depth: newDepth,
               evaluation: newEvaluation,
               isLoading: false,
               isCalculating: false,
-              error: null
-            };
-          } catch (error) {
-            console.error('Error processing engine info:', error);
-            return {
-              ...prev,
-              error: 'Error processing analysis data',
-              isLoading: false
-            };
+              error: null,
+              lines: currentState.lines // Preserve lines, will be updated in memo
+            });
           }
-        });
+        } catch (error) {
+          console.error('Error processing engine info:', error);
+          setAnalysisState(prev => ({
+            ...prev,
+            error: 'Error processing analysis data',
+            isLoading: false
+          }));
+        }
       }
     };
 
@@ -359,7 +365,7 @@ export default function AnalysisSidebar({
                   // Silently skip invalid moves - this happens when engine sends moves for wrong position
                   break;
                 }
-              } catch (moveError) {
+              } catch {
                 // Silently skip - this happens during position transitions
                 break;
               }
@@ -385,7 +391,7 @@ export default function AnalysisSidebar({
                 san
               });
             }
-          } catch (lineError) {
+          } catch {
             // Silently skip this line but continue with others
             continue;
           }
@@ -404,23 +410,29 @@ export default function AnalysisSidebar({
     return lines;
   }, [fen, analysisState.engineLines]);
 
-  // Update parent component with analysis results
+  // Update parent component with analysis results - use RAF to batch DOM updates
   useEffect(() => {
-    onAnalysisUpdate(
-      convertedLines, 
-      analysisState.evaluation, 
-      analyzing && analysisState.isLoading, 
-      analysisState.depth
-    );
+    // Skip if not meaningful update
+    if (!analysisState.evaluation && convertedLines.length === 0 && !analysisState.isLoading) {
+      return;
+    }
+    
+    // Use requestAnimationFrame to batch with browser paint
+    const rafId = requestAnimationFrame(() => {
+      onAnalysisUpdate(
+        convertedLines, 
+        analysisState.evaluation, 
+        analyzing && analysisState.isLoading, 
+        analysisState.depth
+      );
+    });
+    
+    return () => cancelAnimationFrame(rafId);
   }, [convertedLines, analysisState.evaluation, analyzing, analysisState.isLoading, analysisState.depth, onAnalysisUpdate]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -630,11 +642,19 @@ export default function AnalysisSidebar({
         ) : (
           <List dense>
             {convertedLines.map((line, index) => (
-              <ListItem key={index} disablePadding sx={{ mb: 1 }}>
+              <ListItem 
+                key={index} 
+                disablePadding 
+                sx={{ mb: 1 }}
+                onMouseEnter={() => onLineHover?.(index)}
+                onMouseLeave={() => onLineHover?.(null)}
+              >
                 <Paper sx={{ 
                   width: '100%', 
                   p: 1, 
                   backgroundColor: '#1a1a1a',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s',
                   '&:hover': { backgroundColor: '#333' }
                 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>

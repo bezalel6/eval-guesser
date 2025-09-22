@@ -5,6 +5,7 @@ import CssBaseline from "@mui/material/CssBaseline";
 import EmotionCacheProvider from "./emotion";
 import theme from "./theme";
 import "./globals.css";
+import { StockfishProvider } from "./lib/stockfish-engine";
 
 export const metadata: Metadata = {
   title: "Eval Guesser",
@@ -22,7 +23,9 @@ export default function RootLayout({
         <EmotionCacheProvider>
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            <main>{children}</main>
+            <StockfishProvider>
+              <main>{children}</main>
+            </StockfishProvider>
           </ThemeProvider>
         </EmotionCacheProvider>
       </body>

@@ -2,7 +2,6 @@
 
 import React from "react";
 import { Container, Box } from "@mui/material";
-import Grid from "@mui/material/Grid";
 
 interface GameLayoutProps {
   scorePanel: React.ReactNode;
@@ -11,21 +10,42 @@ interface GameLayoutProps {
   controls: React.ReactNode;
 }
 
-export default function GameLayout({ scorePanel, board, slider, controls }: GameLayoutProps) {
+export default function GameLayout({
+  scorePanel,
+  board,
+  slider,
+  controls,
+}: GameLayoutProps) {
   return (
     <Container maxWidth="lg" sx={{ mt: 4 }}>
-      <Grid container spacing={4}>
-        <Grid size={{ xs: 12, md: 4, lg: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          gap: 4,
+        }}
+      >
+        <Box
+          sx={{
+            width: { xs: "100%", md: "33.33%", lg: "25%" },
+            flexShrink: 0,
+          }}
+        >
           {scorePanel}
-        </Grid>
-        <Grid size={{ xs: 12, md: 8, lg: 9 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            {board}
-            {slider}
-            {controls}
-          </Box>
-        </Grid>
-      </Grid>
+        </Box>
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          {board}
+          {slider}
+          {controls}
+        </Box>
+      </Box>
     </Container>
   );
 }

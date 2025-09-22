@@ -12,6 +12,7 @@ import { Chessground } from 'chessground';
 import { Api } from 'chessground/api';
 import { Config } from 'chessground/config';
 import type { Key } from 'chessground/types';
+import type { DrawShape } from 'chessground/draw';
 import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
@@ -28,9 +29,15 @@ interface AnalysisBoardProps {
   currentMoveIndex: number;
   onGoToMove: (index: number) => void;
   onReset: () => void;
+  hoveredLine?: {
+    moves: string[];
+    evaluation: { type: 'cp' | 'mate'; value: number };
+    depth: number;
+    san?: string[];
+  } | null;
 }
 
-export default function AnalysisBoard({
+const AnalysisBoard = React.memo(function AnalysisBoard({
   fen,
   onMove,
   flipped,
@@ -38,7 +45,8 @@ export default function AnalysisBoard({
   moveHistory,
   currentMoveIndex,
   onGoToMove,
-  onReset
+  onReset,
+  hoveredLine
 }: AnalysisBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
@@ -49,54 +57,40 @@ export default function AnalysisBoard({
   const [promotionMove, setPromotionMove] = useState<{from: Key, to: Key} | null>(null);
 
   // Stable callbacks to prevent closure memory leaks
-  const handleMoveWithSoundRef = useRef<(from: Key, to: Key, promotion?: string) => void>(null as any);
+  const handleMoveWithSoundRef = useRef<((from: Key, to: Key, promotion?: string) => void) | null>(null);
   
+  const playMoveSound = (moveSuccess: boolean, fen: string, from: string, to: string, promotion?: string) => {
+    if (!moveSuccess) {
+      playSound('illegal');
+      return;
+    }
+    try {
+      const chess = new Chess(fen);
+      const move = chess.move({
+        from: from as string,
+        to: to as string,
+        promotion: promotion as 'q' | 'r' | 'b' | 'n' | undefined
+      });
+      
+      if (move) {
+        const moveSound = getMoveSound({
+          captured: move.captured !== undefined,
+          castling: move.flags.includes('k') || move.flags.includes('q'),
+          check: chess.inCheck(),
+          promotion: move.flags.includes('p')
+        });
+        playSound(moveSound);
+      }
+    } catch (soundError) {
+      console.warn('Error playing move sound:', soundError);
+    }
+  };
+
   const handleMoveWithSound = useCallback((from: Key, to: Key, promotion?: string) => {
     if (!mountedRef.current) return;
     
-    try {
-      // Try to make the move
-      const success = onMove(from, to, promotion);
-      
-      if (success) {
-        try {
-          // Determine move sound
-          const chess = new Chess(fen);
-          const move = chess.move({
-            from: from as string,
-            to: to as string,
-            promotion: promotion as 'q' | 'r' | 'b' | 'n' | undefined
-          });
-          
-          if (move) {
-            const moveSound = getMoveSound({
-              captured: move.captured !== undefined,
-              castling: move.flags.includes('k') || move.flags.includes('q'),
-              check: chess.inCheck(),
-              promotion: move.flags.includes('p')
-            });
-            playSound(moveSound);
-          }
-        } catch (soundError) {
-          console.warn('Error playing move sound:', soundError);
-          // Move was successful even if sound failed
-        }
-      } else {
-        try {
-          playSound('illegal');
-        } catch (soundError) {
-          console.warn('Error playing illegal move sound:', soundError);
-        }
-      }
-    } catch (error) {
-      console.error('Error in handleMoveWithSound:', error);
-      // Still try to play illegal sound as fallback
-      try {
-        playSound('illegal');
-      } catch (soundError) {
-        console.warn('Error playing fallback sound:', soundError);
-      }
-    }
+    const success = onMove(from, to, promotion);
+    playMoveSound(success, fen, from, to, promotion);
   }, [fen, onMove]);
 
   // Store the stable callback in ref to prevent closure leaks
@@ -223,25 +217,67 @@ export default function AnalysisBoard({
     };
   }, [fen, flipped, color, dests, handleAfterMove]);
 
+  // Calculate arrow shapes for hovered line
+  const arrowShapes = useMemo<DrawShape[]>(() => {
+    if (!hoveredLine || !hoveredLine.moves || hoveredLine.moves.length === 0) {
+      return [];
+    }
+
+    const shapes: DrawShape[] = [];
+    const movesToShow = hoveredLine.moves.slice(0, 3); // Show first 3 moves
+    
+    for (let i = 0; i < movesToShow.length; i++) {
+      const move = movesToShow[i];
+      if (move && move.length >= 4) {
+        const from = move.substring(0, 2) as Key;
+        const to = move.substring(2, 4) as Key;
+        
+        // Validate squares
+        if (/^[a-h][1-8]$/.test(from) && /^[a-h][1-8]$/.test(to)) {
+          shapes.push({
+            orig: from,
+            dest: to,
+            brush: i === 0 ? 'green' : i === 1 ? 'blue' : 'yellow'
+          });
+        }
+      }
+    }
+    
+    return shapes;
+  }, [hoveredLine]); // Memo will handle the comparison
+
   // Update board when dependencies change (but don't recreate)
   useEffect(() => {
     if (!apiRef.current || !mountedRef.current) return;
-
-    apiRef.current.set({
-      fen,
-      turnColor: color as 'white' | 'black',
-      orientation: flipped ? 'black' : 'white',
-      check: inCheck ? (color as 'white' | 'black') : false,
-      movable: {
-        color: 'both',
-        dests,
-        showDests: true,
-        events: {
-          after: handleAfterMove
+    
+    // Use RAF to batch DOM updates with browser paint
+    const rafId = requestAnimationFrame(() => {
+      if (!apiRef.current || !mountedRef.current) return;
+      
+      apiRef.current.set({
+        fen,
+        turnColor: color as 'white' | 'black',
+        orientation: flipped ? 'black' : 'white',
+        check: inCheck ? (color as 'white' | 'black') : false,
+        movable: {
+          color: 'both',
+          dests,
+          showDests: true,
+          events: {
+            after: handleAfterMove
+          }
+        },
+        drawable: {
+          enabled: false,
+          visible: true,
+          shapes: arrowShapes,
+          autoShapes: arrowShapes
         }
-      }
+      });
     });
-  }, [fen, flipped, color, dests, inCheck, handleAfterMove]);
+    
+    return () => cancelAnimationFrame(rafId);
+  }, [fen, flipped, color, dests, inCheck, handleAfterMove, arrowShapes]);
 
   // Stable keyboard event handler to prevent listener leaks
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -420,4 +456,6 @@ export default function AnalysisBoard({
       </Box>
     </Box>
   );
-}
+});
+
+export default AnalysisBoard;

@@ -31,7 +31,7 @@ export interface AnalysisLine {
 export interface StockfishEngineAPI {
   analyze: (fen: string, depth?: number) => Promise<void>;
   getTopMoves: (fen: string, depth?: number, numLines?: number) => Promise<AnalysisLine[]>;
-  stop: () => void;
+  stop: () => Promise<void>;
   onInfo: (callback: (info: EngineInfo) => void) => () => void; // Returns cleanup function
   onBestMove: (callback: (move: string, ponder?: string) => void) => () => void; // Returns cleanup function
   setMultiPV: (lines: number) => void;
@@ -47,6 +47,7 @@ class StockfishEngine {
   private initializationError: string | null = null;
   private onInfoCallbacks = new Map<(info: EngineInfo) => void, boolean>();
   private onBestMoveCallbacks = new Map<(move: string, ponder?: string) => void, boolean>();
+  private stopPromiseResolver: (() => void) | null = null;
   private currentPosition: string = 'startpos';
   private currentDepth: number = 20;
   private multiPV: number = 3;
@@ -172,6 +173,11 @@ class StockfishEngine {
         const bestMove = parts[1];
         const ponderMove = parts[3];
         
+        if (this.stopPromiseResolver) {
+          this.stopPromiseResolver();
+          this.stopPromiseResolver = null;
+        }
+
         // Clean up any invalid callbacks before calling
         this.cleanupInvalidCallbacks();
         this.onBestMoveCallbacks.forEach((_, callback) => {
@@ -297,12 +303,13 @@ class StockfishEngine {
       throw new Error('Worker not available');
     }
 
+    if (this.analyzing) {
+      await this.stop();
+    }
+
     this.currentPosition = fen;
     this.currentDepth = depth;
     this.analyzing = true;
-
-    // Stop any ongoing analysis
-    this.send('stop');
     
     // Set position
     this.send(`position fen ${fen}`);
@@ -417,11 +424,22 @@ class StockfishEngine {
     }
   }
 
-  stop() {
-    if (this.worker && this.status === 'ready') {
+  stop(): Promise<void> {
+    if (this.worker && this.status === 'ready' && this.analyzing) {
       this.send('stop');
       this.analyzing = false;
+      return new Promise((resolve) => {
+        this.stopPromiseResolver = resolve;
+        // Safety timeout
+        setTimeout(() => {
+          if (this.stopPromiseResolver) {
+            this.stopPromiseResolver();
+            this.stopPromiseResolver = null;
+          }
+        }, 500); // 500ms timeout
+      });
     }
+    return Promise.resolve();
   }
 
   onInfo(callback: (info: EngineInfo) => void): () => void {
