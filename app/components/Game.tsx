@@ -13,8 +13,36 @@ interface GameProps {
   initialPuzzle: Puzzle;
 }
 
+
 export default function Game({ initialPuzzle }: GameProps) {
   const { state, dispatch } = useGameReducer(initialPuzzle);
+
+  const fetchSolution = async () => {
+    if (state.puzzle.Moves) return; // Already have the solution
+
+    dispatch({ type: 'FETCH_SOLUTION_START' });
+    try {
+      const response = await fetch(`/api/puzzles/${state.puzzle.PuzzleId}/solution`);
+      if (!response.ok) throw new Error("Solution fetch failed");
+      const solution = await response.json();
+      dispatch({ type: 'FETCH_SOLUTION_SUCCESS', payload: solution });
+    } catch (error) {
+      console.error("Failed to fetch solution:", error);
+      dispatch({ type: 'FETCH_SOLUTION_FAILURE' });
+    }
+  };
+
+  const handleGuess = () => {
+    dispatch({ type: 'GUESS_SUBMITTED' });
+    fetchSolution(); // Fetch solution after guess is submitted
+  };
+
+  const handleShowBestMove = () => {
+    dispatch({ type: 'SHOW_BEST_MOVE' });
+    if (!state.puzzle.Moves) {
+      fetchSolution();
+    }
+  };
 
   const fetchRandomPuzzle = React.useCallback(async () => {
     dispatch({ type: "FETCH_NEW_PUZZLE_START" });
@@ -33,8 +61,8 @@ export default function Game({ initialPuzzle }: GameProps) {
     <>
       <GameLayout
         scorePanel={<ScorePanel state={state} dispatch={dispatch} />}
-        board={<BoardWrapper state={state} dispatch={dispatch} />}
-        slider={<EvaluationSlider state={state} dispatch={dispatch} />}
+        board={<BoardWrapper state={state} dispatch={dispatch} onShowBestMove={handleShowBestMove} />}
+        slider={<EvaluationSlider state={state} dispatch={dispatch} onGuess={handleGuess} />}
         controls={<Box sx={{ minHeight: 48, mt: 2 }} />}
       />
       <ResultsModal state={state} onNextPuzzle={fetchRandomPuzzle} />

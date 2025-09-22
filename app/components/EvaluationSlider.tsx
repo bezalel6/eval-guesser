@@ -43,13 +43,16 @@ export default function EvaluationSlider({ state, dispatch }: EvaluationSliderPr
       {phase === 'guessing' && hasInteractedWithEval && (
         <Button
           variant="contained"
-          onClick={handleSubmit}
+          onClick={onGuess} // Use the new handler
           size="large"
           sx={{ px: 6, py: 1.5, fontSize: '1.1rem' }}
+          disabled={phase === 'solution-loading'}
         >
-          Submit Evaluation
+          {phase === 'solution-loading' ? 'Checking...' : 'Submit Evaluation'}
         </Button>
       )}
     </Box>
+  );
+} </Box>
   );
 }

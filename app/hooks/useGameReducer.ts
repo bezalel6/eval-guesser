@@ -43,7 +43,7 @@ export type GameAction =
   | { type: 'SHOW_BEST_MOVE' };
 
 const initialState: GameState = {
-  puzzle: { PuzzleId: '', FEN: '', Moves: '', Rating: 0 },
+  puzzle: { PuzzleId: '', FEN: '', Rating: 0 },
   currentFen: '',
   userGuess: 0,
   sliderValue: 0,
@@ -79,6 +79,45 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         phase: 'guessing', // Or some error state
       };
+    case 'FETCH_SOLUTION_START':
+      return {
+        ...state,
+        phase: 'solution-loading',
+      };
+    case 'FETCH_SOLUTION_FAILURE':
+      return {
+        ...state,
+        phase: 'guessing', // Go back to guessing if solution fails
+      };
+    case 'FETCH_SOLUTION_SUCCESS': {
+      const newPuzzleState = { ...state.puzzle, Moves: action.payload.Moves };
+      // If we are showing the best move, we don't calculate score yet
+      if (state.bestMoveShown) {
+        return {
+          ...state,
+          puzzle: newPuzzleState,
+          phase: 'guessing',
+        };
+      }
+
+      // Otherwise, we are calculating the result of a guess
+      const difference = Math.abs(state.userGuess - newPuzzleState.Rating);
+      const points = Math.max(0, 1000 - difference);
+      const newScore = state.score + points;
+      
+      const isCorrect = difference <= 100; // Within 1 pawn
+      const newStreak = isCorrect ? state.streak + 1 : 0;
+      const newBestStreak = Math.max(state.bestStreak, newStreak);
+
+      return {
+        ...state,
+        puzzle: newPuzzleState,
+        score: newScore,
+        streak: newStreak,
+        bestStreak: newBestStreak,
+        phase: 'result',
+      };
+    }
     case 'MOVE_PIECE':
       return {
         ...state,
@@ -102,27 +141,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         hasInteractedWithEval: true,
       };
     case 'GUESS_SUBMITTED': {
-      const difference = Math.abs(state.sliderValue - state.puzzle.Rating);
-      const points = Math.max(0, 1000 - difference);
-      const newScore = state.score + points;
-      
-      const isCorrect = difference <= 100; // Within 1 pawn
-      const newStreak = isCorrect ? state.streak + 1 : 0;
-      const newBestStreak = Math.max(state.bestStreak, newStreak);
-
       return {
         ...state,
         userGuess: state.sliderValue,
-        score: newScore,
-        streak: newStreak,
-        bestStreak: newBestStreak,
-        phase: 'result',
+        phase: 'solution-loading',
       };
     }
     case 'SHOW_BEST_MOVE':
       return {
         ...state,
         bestMoveShown: true,
+        // The fetch logic will be handled in the component
+        phase: state.puzzle.Moves ? state.phase : 'solution-loading',
       };
     default:
       return state;

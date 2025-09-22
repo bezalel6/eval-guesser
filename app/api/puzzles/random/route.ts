@@ -5,6 +5,7 @@ const puzzleService = PuzzleService.getInstance();
 
 export async function GET() {
   try {
+    // By default, getRandomPuzzle now excludes the solution
     const puzzle = await puzzleService.getRandomPuzzle();
     
     if (!puzzle) {

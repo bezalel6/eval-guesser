@@ -103,7 +103,7 @@ export default function BoardWrapper({ state, dispatch }: BoardWrapperProps) {
           }}
           onApiReady={(api) => (cgApiRef.current = api)} // Get the API reference
         />
-        {phase === 'loading' && (
+        {(phase === 'loading' || phase === 'solution-loading') && (
           <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '8px' }}>
             <CircularProgress color="primary" />
           </Box>
@@ -112,7 +112,7 @@ export default function BoardWrapper({ state, dispatch }: BoardWrapperProps) {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1, mb: 2 }}>
         <Typography variant="body2" fontWeight="bold">{turn} to move</Typography>
         <Box>
-          <IconButton title="Show Best Move" onClick={() => dispatch({ type: 'SHOW_BEST_MOVE' })} disabled={phase !== 'guessing' || isBoardModified}>
+          <IconButton title="Show Best Move" onClick={onShowBestMove} disabled={phase !== 'guessing' || isBoardModified}>
             <LightbulbIcon />
           </IconButton>
           {isBoardModified && (
@@ -122,6 +122,12 @@ export default function BoardWrapper({ state, dispatch }: BoardWrapperProps) {
           )}
           <IconButton title="Flip Board" onClick={() => dispatch({ type: 'FLIP_BOARD' })}>
             <SwapVertIcon />
+          </IconButton>
+        </Box>
+      </Box>
+    </Box>
+  );
+}n />
           </IconButton>
         </Box>
       </Box>

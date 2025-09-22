@@ -46,7 +46,8 @@ class PuzzleService {
   /**
    * Get a random puzzle efficiently using cached count
    */
-  public async getRandomPuzzle(): Promise<Puzzle | null> {
+  public async getRandomPuzzle(options: { includeSolution?: boolean } = {}): Promise<Partial<Puzzle> | null> {
+    const { includeSolution = false } = options;
     const totalCount = await this.getTotalCount();
 
     if (totalCount === 0) {
@@ -61,16 +62,27 @@ class PuzzleService {
       SELECT * FROM puzzles LIMIT 1 OFFSET ${randomIndex}
     `;
 
+    if (puzzle && !includeSolution) {
+      delete (puzzle as Partial<Puzzle>).Moves;
+    }
+
     return puzzle || null;
   }
 
   /**
    * Get a puzzle by its ID
    */
-  public async getPuzzleById(puzzleId: string): Promise<Puzzle | null> {
-    return await this.prisma.puzzles.findUnique({
+  public async getPuzzleById(puzzleId: string, options: { includeSolution?: boolean } = {}): Promise<Partial<Puzzle> | null> {
+    const { includeSolution = false } = options;
+    const puzzle = await this.prisma.puzzles.findUnique({
       where: { PuzzleId: puzzleId },
     });
+
+    if (puzzle && !includeSolution) {
+      delete (puzzle as Partial<Puzzle>).Moves;
+    }
+
+    return puzzle;
   }
 
   /**
