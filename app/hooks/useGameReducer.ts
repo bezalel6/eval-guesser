@@ -247,12 +247,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
-export function useGameReducer(initialPuzzle: Puzzle) {
+export function useGameReducer(
+  initialPuzzle: Puzzle, 
+  initialScore: number = 0, 
+  initialStreak: number = 0
+) {
   const [state, dispatch] = useReducer(gameReducer, {
     ...initialState,
     puzzle: initialPuzzle,
     currentFen: initialPuzzle.FEN,
     phase: 'guessing' as GamePhase,
+    score: initialScore,
+    streak: initialStreak,
   });
 
   return { state, dispatch };

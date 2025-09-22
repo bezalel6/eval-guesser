@@ -15,11 +15,25 @@ interface GameProps {
   initialPuzzle: Puzzle;
   onUpdateHighScore?: (score: number) => void;
   onBackToMenu?: () => void;
+  initialScore?: number;
+  initialStreak?: number;
+  initialTheme?: string;
+  onStateChange?: (score: number, streak: number, theme?: string) => void;
+  onNextPuzzle?: () => void;
 }
 
 
-export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu: _onBackToMenu }: GameProps) {
-  const { state, dispatch } = useGameReducer(initialPuzzle);
+export default function Game({ 
+  initialPuzzle, 
+  onUpdateHighScore, 
+  onBackToMenu: _onBackToMenu,
+  initialScore = 0,
+  initialStreak = 0,
+  initialTheme,
+  onStateChange,
+  onNextPuzzle 
+}: GameProps) {
+  const { state, dispatch } = useGameReducer(initialPuzzle, initialScore, initialStreak);
 
   const fetchSolution = async () => {
     if (state.puzzle.Moves) return; // Already have the solution
@@ -44,6 +58,13 @@ export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu: _
 
 
   const fetchRandomPuzzle = React.useCallback(async () => {
+    // If onNextPuzzle is provided, use it for navigation
+    if (onNextPuzzle) {
+      onNextPuzzle();
+      return;
+    }
+    
+    // Otherwise, fetch internally (for backwards compatibility)
     dispatch({ type: "FETCH_NEW_PUZZLE_START" });
     try {
       let newPuzzle;
@@ -70,12 +91,21 @@ export default function Game({ initialPuzzle, onUpdateHighScore, onBackToMenu: _
       console.error("Failed to fetch new puzzle:", error);
       dispatch({ type: "FETCH_NEW_PUZZLE_FAILURE" });
     }
-  }, [dispatch, state.currentTheme]);
+  }, [dispatch, state.currentTheme, onNextPuzzle]);
 
-  // Fetch a new puzzle whenever the theme changes
+  // Initialize theme if provided
   useEffect(() => {
-    fetchRandomPuzzle();
-  }, [state.currentTheme, fetchRandomPuzzle]);
+    if (initialTheme && state.currentTheme !== initialTheme) {
+      dispatch({ type: 'SET_THEME', payload: initialTheme });
+    }
+  }, [initialTheme, state.currentTheme, dispatch]);
+
+  // Call onStateChange when state changes
+  useEffect(() => {
+    if (onStateChange) {
+      onStateChange(state.score, state.streak, state.currentTheme || undefined);
+    }
+  }, [state.score, state.streak, state.currentTheme, onStateChange]);
 
   // Track high score
   useEffect(() => {
