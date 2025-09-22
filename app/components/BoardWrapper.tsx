@@ -71,6 +71,22 @@ export default function BoardWrapper({ state, dispatch }: BoardWrapperProps) {
   const boardOrientation = boardFlipped ? (turnColor === 'w' ? 'black' : 'white') : (turnColor === 'w' ? 'white' : 'black');
   const isBoardModified = currentFen !== state.puzzle.FEN;
 
+  // Effect to draw the best move arrow
+  useEffect(() => {
+    if (bestMoveShown && cgApiRef.current) {
+      const bestMove = puzzle.Moves.split(' ')[0];
+      if (bestMove && bestMove.length >= 4) {
+        const from = bestMove.substring(0, 2) as Key;
+        const to = bestMove.substring(2, 4) as Key;
+        cgApiRef.current.setShapes([{ orig: from, dest: to, brush: 'green' }]);
+      } else {
+        cgApiRef.current.setShapes([]); // Clear shapes if no move
+      }
+    } else if (cgApiRef.current) {
+      cgApiRef.current.setShapes([]); // Clear shapes if not shown
+    }
+  }, [bestMoveShown, puzzle.Moves]);
+
   return (
     <Box sx={{ width: '100%', maxWidth: '600px', position: 'relative' }}>
       <Box className="board-container" sx={{ mb: 1 }}>
@@ -85,6 +101,7 @@ export default function BoardWrapper({ state, dispatch }: BoardWrapperProps) {
             color: phase === 'result' ? undefined : 'both',
             dests: phase === 'result' ? new Map() : getLegalMoves(currentFen)
           }}
+          onApiReady={(api) => (cgApiRef.current = api)} // Get the API reference
         />
         {phase === 'loading' && (
           <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '8px' }}>
@@ -95,6 +112,9 @@ export default function BoardWrapper({ state, dispatch }: BoardWrapperProps) {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1, mb: 2 }}>
         <Typography variant="body2" fontWeight="bold">{turn} to move</Typography>
         <Box>
+          <IconButton title="Show Best Move" onClick={() => dispatch({ type: 'SHOW_BEST_MOVE' })} disabled={phase !== 'guessing' || isBoardModified}>
+            <LightbulbIcon />
+          </IconButton>
           {isBoardModified && (
             <IconButton title="Reset Position" onClick={() => dispatch({ type: 'RESET_POSITION' })}>
               <LoopIcon />

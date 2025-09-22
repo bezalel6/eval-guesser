@@ -9,6 +9,7 @@ const MATE_VALUE = 10000;
 export interface Puzzle {
   PuzzleId: string;
   FEN: string;
+  Moves: string;
   Rating: number;
   Themes?: string;
   OpeningTags?: string;
@@ -27,6 +28,7 @@ export interface GameState {
   phase: GamePhase;
   boardFlipped: boolean;
   hasInteractedWithEval: boolean;
+  bestMoveShown: boolean;
 }
 
 export type GameAction = 
@@ -37,10 +39,11 @@ export type GameAction =
   | { type: 'RESET_POSITION' }
   | { type: 'FLIP_BOARD' }
   | { type: 'SLIDER_CHANGE'; payload: number } // value
-  | { type: 'GUESS_SUBMITTED' };
+  | { type: 'GUESS_SUBMITTED' }
+  | { type: 'SHOW_BEST_MOVE' };
 
 const initialState: GameState = {
-  puzzle: { PuzzleId: '', FEN: '', Rating: 0 },
+  puzzle: { PuzzleId: '', FEN: '', Moves: '', Rating: 0 },
   currentFen: '',
   userGuess: 0,
   sliderValue: 0,
@@ -50,6 +53,7 @@ const initialState: GameState = {
   phase: 'loading',
   boardFlipped: false,
   hasInteractedWithEval: false,
+  bestMoveShown: false,
 };
 
 function gameReducer(state: GameState, action: GameAction): GameState {
@@ -68,6 +72,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         sliderValue: 0,
         userGuess: 0,
         hasInteractedWithEval: false,
+        bestMoveShown: false, // Reset on new puzzle
       };
     case 'FETCH_NEW_PUZZLE_FAILURE':
       return {
@@ -83,6 +88,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         currentFen: state.puzzle.FEN,
+        bestMoveShown: false, // Also reset here
       };
     case 'FLIP_BOARD':
       return {
@@ -113,6 +119,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         phase: 'result',
       };
     }
+    case 'SHOW_BEST_MOVE':
+      return {
+        ...state,
+        bestMoveShown: true,
+      };
     default:
       return state;
   }
