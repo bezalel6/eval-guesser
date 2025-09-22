@@ -44,25 +44,50 @@ export default function Game({ initialPuzzle }: GameProps) {
     }
   };
 
+  const { state, dispatch } = useGameReducer(initialPuzzle);
+
   const fetchRandomPuzzle = React.useCallback(async () => {
     dispatch({ type: "FETCH_NEW_PUZZLE_START" });
     try {
-      const response = await fetch("/api/puzzles/random");
-      if (!response.ok) throw new Error("Failed to fetch");
-      const newPuzzle = await response.json();
+      let newPuzzle;
+      if (state.currentTheme) {
+        const response = await fetch(`/api/puzzles/by-theme?theme=${state.currentTheme}&limit=50`);
+        if (!response.ok) throw new Error("Failed to fetch by theme");
+        const data = await response.json();
+        if (data.puzzles && data.puzzles.length > 0) {
+          newPuzzle = data.puzzles[Math.floor(Math.random() * data.puzzles.length)];
+        } else {
+          // Fallback to random if no puzzles found for the theme
+          console.warn(`No puzzles found for theme: ${state.currentTheme}. Fetching a random puzzle.`);
+          const randomResponse = await fetch("/api/puzzles/random");
+          if (!randomResponse.ok) throw new Error("Failed to fetch random puzzle");
+          newPuzzle = await randomResponse.json();
+        }
+      } else {
+        const response = await fetch("/api/puzzles/random");
+        if (!response.ok) throw new Error("Failed to fetch random puzzle");
+        newPuzzle = await response.json();
+      }
       dispatch({ type: "FETCH_NEW_PUZZLE_SUCCESS", payload: newPuzzle });
     } catch (error) {
       console.error("Failed to fetch new puzzle:", error);
       dispatch({ type: "FETCH_NEW_PUZZLE_FAILURE" });
     }
-  }, [dispatch]);
+  }, [dispatch, state.currentTheme]);
+
+  // Fetch a new puzzle whenever the theme changes
+  useEffect(() => {
+    fetchRandomPuzzle();
+  }, [state.currentTheme, fetchRandomPuzzle]);
+
+  const fetchSolution = async () => {
 
   return (
     <>
       <GameLayout
         scorePanel={<ScorePanel state={state} dispatch={dispatch} />}
-        board={<BoardWrapper state={state} dispatch={dispatch} onShowBestMove={handleShowBestMove} />}
-        slider={<EvaluationSlider state={state} dispatch={dispatch} onGuess={handleGuess} />}
+        board={<BoardWrapper state={state} dispatch={dispatch} onShowBestMove={handleShowBestMove} onSkip={fetchRandomPuzzle} />}
+        slider={<EvaluationSlider state={state} dispatch={dispatch} onGuess={handleGuess} isBoardModified={state.currentFen !== state.puzzle.FEN} />}
         controls={<Box sx={{ minHeight: 48, mt: 2 }} />}
       />
       <ResultsModal state={state} onNextPuzzle={fetchRandomPuzzle} />

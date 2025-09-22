@@ -29,18 +29,23 @@ export interface GameState {
   boardFlipped: boolean;
   hasInteractedWithEval: boolean;
   bestMoveShown: boolean;
+  currentTheme: string | null;
 }
 
 export type GameAction = 
   | { type: 'FETCH_NEW_PUZZLE_START' }
   | { type: 'FETCH_NEW_PUZZLE_SUCCESS'; payload: Puzzle }
   | { type: 'FETCH_NEW_PUZZLE_FAILURE' }
+  | { type: 'FETCH_SOLUTION_START' }
+  | { type: 'FETCH_SOLUTION_SUCCESS'; payload: { Moves: string } }
+  | { type: 'FETCH_SOLUTION_FAILURE' }
   | { type: 'MOVE_PIECE'; payload: string } // fen
   | { type: 'RESET_POSITION' }
   | { type: 'FLIP_BOARD' }
   | { type: 'SLIDER_CHANGE'; payload: number } // value
   | { type: 'GUESS_SUBMITTED' }
-  | { type: 'SHOW_BEST_MOVE' };
+  | { type: 'SHOW_BEST_MOVE' }
+  | { type: 'SET_THEME'; payload: string | null };
 
 const initialState: GameState = {
   puzzle: { PuzzleId: '', FEN: '', Rating: 0 },
@@ -54,6 +59,7 @@ const initialState: GameState = {
   boardFlipped: false,
   hasInteractedWithEval: false,
   bestMoveShown: false,
+  currentTheme: null,
 };
 
 function gameReducer(state: GameState, action: GameAction): GameState {
@@ -178,6 +184,9 @@ export const formatEval = (centipawns: number) => {
   }
   const pawns = centipawns / 100;
   return pawns >= 0 ? `+${pawns.toFixed(1)}` : pawns.toFixed(1);
+};
+
+export const MAX_EVAL_CONST = MAX_EVAL;wns.toFixed(1)}` : pawns.toFixed(1);
 };
 
 export const MAX_EVAL_CONST = MAX_EVAL;

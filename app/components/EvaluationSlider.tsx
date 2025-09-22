@@ -4,12 +4,15 @@ import React from "react";
 import { Box, Typography, Button } from "@mui/material";
 import { GameState, GameAction, formatEval, MAX_EVAL_CONST } from "../hooks/useGameReducer";
 
+
 interface EvaluationSliderProps {
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
+  onGuess: () => void;
+  isBoardModified: boolean;
 }
 
-export default function EvaluationSlider({ state, dispatch }: EvaluationSliderProps) {
+export default function EvaluationSlider({ state, dispatch, onGuess, isBoardModified }: EvaluationSliderProps) {
   const { sliderValue, hasInteractedWithEval, phase } = state;
 
   const handleRangeChange = (event: React.ChangeEvent<HTMLInputElement>) => {

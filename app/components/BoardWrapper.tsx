@@ -16,12 +16,15 @@ const ChessgroundBoard = dynamic(() => import('./ChessgroundBoard'), {
   loading: () => <Box sx={{ aspectRatio: '1 / 1', width: '100%', backgroundColor: 'background.paper' }} />
 });
 
+
 interface BoardWrapperProps {
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
+  onShowBestMove: () => void;
+  onSkip: () => void;
 }
 
-export default function BoardWrapper({ state, dispatch }: BoardWrapperProps) {
+export default function BoardWrapper({ state, dispatch, onShowBestMove, onSkip }: BoardWrapperProps) {
   const { currentFen, boardFlipped, phase } = state;
   const chessRef = useRef(new Chess());
 
