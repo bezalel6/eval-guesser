@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { 
@@ -8,52 +8,40 @@ import {
   Paper, 
   Typography, 
   Button, 
-  Box, 
   Grid,
-  CircularProgress,
-  Chip
+  Box,
+  CircularProgress
 } from "@mui/material";
+import Header from "@/app/components/Header";
 import TimerIcon from '@mui/icons-material/Timer';
 import AllInclusiveIcon from '@mui/icons-material/AllInclusive';
-import TrophyIcon from '@mui/icons-material/EmojiEvents';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import Header from "@/app/components/Header";
-
-interface PersonalBest {
-  mode: 'FIVE_MINUTE' | 'SURVIVAL';
-  bestScore: number;
-  achievedAt: string;
-}
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [personalBests, setPersonalBests] = useState<PersonalBest[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/signin");
-    } else if (status === "authenticated") {
-      fetchPersonalBests();
     }
   }, [status, router]);
 
-  const fetchPersonalBests = async () => {
-    try {
-      const response = await fetch("/api/rush/leaderboard/personal");
-      if (response.ok) {
-        const data = await response.json();
-        setPersonalBests(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch personal bests:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (status === "loading") {
+    return (
+      <>
+        <Header title="Dashboard" />
+        <Container maxWidth="lg" sx={{ mt: 4, textAlign: 'center' }}>
+          <CircularProgress />
+        </Container>
+      </>
+    );
+  }
 
-  const startGame = async (mode: 'FIVE_MINUTE' | 'SURVIVAL') => {
+  if (!session) {
+    return null;
+  }
+
+  const handleStartRush = async (mode: 'FIVE_MINUTE' | 'SURVIVAL') => {
     try {
       const response = await fetch("/api/rush/session", {
         method: "POST",
@@ -62,133 +50,88 @@ export default function DashboardPage() {
       });
 
       if (response.ok) {
-        const session = await response.json();
-        router.push(`/rush/${session.id}`);
+        const data = await response.json();
+        router.push(`/rush/${data.id}`);
       }
     } catch (error) {
-      console.error("Failed to start game:", error);
+      console.error("Failed to start rush:", error);
     }
   };
 
-  if (status === "loading" || loading) {
-    return (
-      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
-        <CircularProgress />
-      </Container>
-    );
-  }
-
-  const fiveMinuteBest = personalBests.find(pb => pb.mode === 'FIVE_MINUTE');
-  const survivalBest = personalBests.find(pb => pb.mode === 'SURVIVAL');
-
   return (
     <>
-      <Header title="Puzzle Rush" showBackButton onBackClick={() => router.push("/")} />
-      
+      <Header title="Dashboard" />
       <Container maxWidth="lg" sx={{ mt: 4 }}>
-        {/* Welcome Section */}
-        <Box sx={{ mb: 4, textAlign: 'center' }}>
-          <Typography variant="h3" gutterBottom>
-            Welcome back, {session?.user?.name || session?.user?.email}!
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Choose your challenge mode
-          </Typography>
-        </Box>
+        <Typography variant="h4" gutterBottom align="center">
+          Welcome, {session.user?.name || "Player"}!
+        </Typography>
 
-        {/* Game Modes */}
-        <Grid container spacing={3} sx={{ mb: 6 }}>
-          {/* 5-Minute Rush */}
+        <Typography variant="h6" sx={{ mt: 4, mb: 3, textAlign: 'center' }}>
+          Choose Your Game Mode
+        </Typography>
+
+        <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <Paper 
-              elevation={3} 
               sx={{ 
                 p: 4, 
                 textAlign: 'center',
                 cursor: 'pointer',
                 transition: 'transform 0.2s',
-                '&:hover': { transform: 'translateY(-4px)' }
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 3,
+                }
               }}
-              onClick={() => startGame('FIVE_MINUTE')}
+              onClick={() => handleStartRush('FIVE_MINUTE')}
             >
-              <TimerIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
-              <Typography variant="h4" gutterBottom>
+              <TimerIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+              <Typography variant="h5" gutterBottom>
                 5-Minute Rush
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                Solve as many puzzles as you can in 5 minutes
+                Race against time! Solve as many puzzles as you can in 5 minutes.
               </Typography>
-              
-              {fiveMinuteBest && (
-                <Chip 
-                  icon={<TrophyIcon />}
-                  label={`Personal Best: ${fiveMinuteBest.bestScore}`}
-                  color="secondary"
-                  sx={{ mb: 3 }}
-                />
-              )}
-              
-              <Button 
-                variant="contained" 
-                size="large"
-                startIcon={<PlayArrowIcon />}
-                fullWidth
-              >
+              <Button variant="contained" size="large" fullWidth>
                 Start 5-Minute Rush
               </Button>
             </Paper>
           </Grid>
 
-          {/* Survival Mode */}
           <Grid item xs={12} md={6}>
             <Paper 
-              elevation={3} 
               sx={{ 
                 p: 4, 
                 textAlign: 'center',
                 cursor: 'pointer',
                 transition: 'transform 0.2s',
-                '&:hover': { transform: 'translateY(-4px)' }
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 3,
+                }
               }}
-              onClick={() => startGame('SURVIVAL')}
+              onClick={() => handleStartRush('SURVIVAL')}
             >
-              <AllInclusiveIcon sx={{ fontSize: 64, color: 'warning.main', mb: 2 }} />
-              <Typography variant="h4" gutterBottom>
+              <AllInclusiveIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+              <Typography variant="h5" gutterBottom>
                 Survival Mode
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                No time limit - one wrong answer ends the run
+                No time limit, but one wrong answer ends your run. How far can you go?
               </Typography>
-              
-              {survivalBest && (
-                <Chip 
-                  icon={<TrophyIcon />}
-                  label={`Personal Best: ${survivalBest.bestScore}`}
-                  color="secondary"
-                  sx={{ mb: 3 }}
-                />
-              )}
-              
-              <Button 
-                variant="contained" 
-                size="large"
-                startIcon={<PlayArrowIcon />}
-                fullWidth
-                color="warning"
-              >
+              <Button variant="contained" size="large" fullWidth>
                 Start Survival Mode
               </Button>
             </Paper>
           </Grid>
         </Grid>
 
-        {/* Leaderboard Link */}
-        <Box sx={{ textAlign: 'center' }}>
-          <Button 
-            variant="outlined" 
-            onClick={() => router.push("/leaderboard")}
+        <Box sx={{ mt: 4, textAlign: 'center' }}>
+          <Button
+            variant="outlined"
+            onClick={() => router.push("/analysis")}
           >
-            View Global Leaderboard
+            Practice with Analysis Board
           </Button>
         </Box>
       </Container>

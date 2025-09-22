@@ -1,90 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import React from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { Container, Paper, TextField, Button, Typography, Box, Alert } from "@mui/material";
-import EmailIcon from '@mui/icons-material/Email';
+import { 
+  Container, 
+  Paper, 
+  Typography, 
+  Button,
+  Box,
+  Alert
+} from "@mui/material";
 import Header from "@/app/components/Header";
 
 export default function SignInPage() {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const searchParams = useSearchParams();
+  const error = searchParams.get("error");
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      const result = await signIn("email", {
-        email,
-        redirect: false,
-        callbackUrl,
-      });
-
-      if (result?.error) {
-        setError("Failed to send sign-in email. Please try again.");
-      } else {
-        // Redirect to verification page
-        window.location.href = `/auth/verify?email=${encodeURIComponent(email)}`;
-      }
-    } catch {
-      setError("An error occurred. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+  const handleLichessSignIn = () => {
+    signIn("lichess", { callbackUrl });
   };
 
   return (
     <>
       <Header title="Sign In" />
       <Container maxWidth="sm" sx={{ mt: 8 }}>
-        <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <EmailIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-            <Typography variant="h4" gutterBottom>
-              Sign in to Eval Rush
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Enter your email to receive a sign-in link
-            </Typography>
-          </Box>
-
+        <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
+          <Typography variant="h4" gutterBottom>
+            Sign in to Eval Rush
+          </Typography>
+          
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error === "OAuthSignin" && "Error starting authentication"}
+              {error === "OAuthCallback" && "Error during authentication"}
+              {error === "Default" && "Unable to sign in"}
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              type="email"
-              label="Email Address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-              sx={{ mb: 3 }}
-            />
-            
+          <Box sx={{ mt: 4 }}>
             <Button
-              fullWidth
-              type="submit"
               variant="contained"
               size="large"
-              disabled={loading || !email}
+              onClick={handleLichessSignIn}
+              sx={{
+                backgroundColor: '#629924',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: '#4a7a1c',
+                },
+                py: 1.5,
+                px: 4,
+                fontSize: '1.1rem',
+                textTransform: 'none',
+              }}
+              fullWidth
             >
-              {loading ? "Sending..." : "Send Sign-in Link"}
+              <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                ♘ Sign in with Lichess
+              </Box>
             </Button>
-          </form>
+          </Box>
 
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 3, textAlign: 'center' }}>
-            We'll send you a secure link to sign in - no password needed!
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 3 }}>
+            We'll use your Lichess account to track your progress
           </Typography>
         </Paper>
       </Container>

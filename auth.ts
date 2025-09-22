@@ -1,8 +1,7 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import EmailProvider from "next-auth/providers/email";
-import authConfig from "./auth.config";
 import { prisma } from "@/lib/prisma";
+import Lichess from "@/lib/auth-providers/lichess";
 
 export const { 
   handlers, 
@@ -11,30 +10,29 @@ export const {
   signOut 
 } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
-  ...authConfig,
   providers: [
-    EmailProvider({
-      server: {
-        host: process.env.EMAIL_SERVER_HOST,
-        port: Number(process.env.EMAIL_SERVER_PORT),
-        auth: {
-          user: process.env.EMAIL_SERVER_USER,
-          pass: process.env.EMAIL_SERVER_PASSWORD,
-        },
-      },
-      from: process.env.EMAIL_FROM || "noreply@evalrush.com",
+    Lichess({
+      clientId: process.env.LICHESS_CLIENT_ID || "eval-rush-app",
+      clientSecret: "", // Lichess doesn't require a client secret
     }),
   ],
   callbacks: {
-    async session({ token, session }) {
-      if (token.sub && session.user) {
-        session.user.id = token.sub;
+    async session({ session, user }) {
+      if (session.user && user) {
+        session.user.id = user.id;
       }
       return session;
     },
-    async jwt({ token }) {
-      return token;
+    async signIn({ account }) {
+      // Allow Lichess sign in
+      return account?.provider === "lichess";
     },
   },
+  pages: {
+    signIn: "/auth/signin",
+  },
+  session: {
+    strategy: "database",
+  },
+  debug: process.env.NODE_ENV === "development",
 });

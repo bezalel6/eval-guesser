@@ -9,7 +9,6 @@ import {
   Button, 
   Box
 } from "@mui/material";
-import LoginIcon from '@mui/icons-material/Login';
 import Header from "@/app/components/Header";
 
 export default function Page() {
@@ -48,12 +47,16 @@ export default function Page() {
             <Button
               variant="contained"
               size="large"
-              startIcon={<LoginIcon />}
               onClick={() => router.push("/auth/signin")}
-              sx={{ minWidth: 200 }}
-              disabled
+              sx={{ 
+                minWidth: 200,
+                backgroundColor: '#629924',
+                '&:hover': {
+                  backgroundColor: '#4a7a1c',
+                }
+              }}
             >
-              Sign In (Setup Required)
+              Sign In with Lichess
             </Button>
             
             <Button
@@ -66,15 +69,9 @@ export default function Page() {
             </Button>
           </Box>
           
-          <Box sx={{ mt: 4, p: 2, bgcolor: 'warning.dark', borderRadius: 1 }}>
-            <Typography variant="body2" color="warning.contrastText">
-              Note: Authentication requires database setup. Configure PostgreSQL and email settings in .env.local
-            </Typography>
-          </Box>
-          
           <Box sx={{ mt: 6, pt: 4, borderTop: '1px solid', borderColor: 'divider' }}>
             <Typography variant="h6" gutterBottom>
-              Game Modes (Coming Soon)
+              Game Modes
             </Typography>
             
             <Box sx={{ display: 'flex', gap: 4, justifyContent: 'center', mt: 3 }}>
