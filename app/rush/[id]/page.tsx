@@ -7,7 +7,7 @@ import {
   Paper, 
   Typography, 
   LinearProgress,
-  Grid
+  Box
 } from "@mui/material";
 import Header from "@/app/components/Header";
 import BoardWrapper from "@/app/components/BoardWrapper";
@@ -37,13 +37,11 @@ export default function RushPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const startTimeRef = useRef<number>(Date.now());
-  const timerRef = useRef<NodeJS.Timeout>();
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize game reducer with puzzle
   const { state, dispatch } = useGameReducer(
-    puzzle || { PuzzleId: '', FEN: '', Moves: '', Rating: 0 },
-    0,
-    0
+    puzzle || { PuzzleId: '', FEN: '', Moves: '', Rating: 0 }
   );
 
   const fetchNextPuzzle = useCallback(async (currentScore: number) => {
@@ -238,24 +236,23 @@ export default function RushPage() {
         </Paper>
 
         {/* Game area */}
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={8}>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 calc(66.66% - 8px)' } }}>
             <BoardWrapper 
               state={state}
               dispatch={dispatch}
             />
-          </Grid>
-          <Grid item xs={12} md={4}>
+          </Box>
+          <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 calc(33.33% - 8px)' } }}>
             <EvalBar
-              state={state}
-              dispatch={dispatch}
+              mode="interactive"
+              value={state.sliderValue}
+              onChange={(value) => dispatch({ type: 'SLIDER_CHANGE', payload: value })}
               onSubmit={handleGuess}
-              isSubmitting={isSubmitting}
-              hideHeader
-              autoShowValue
+              disabled={isSubmitting || state.phase !== 'guessing'}
             />
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Container>
     </>
   );

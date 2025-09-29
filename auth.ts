@@ -1,5 +1,5 @@
-import NextAuth from "next-auth/next";
-import type { NextAuthConfig } from "next-auth";
+import NextAuth from "next-auth";
+import type { NextAuthOptions } from "next-auth";
 
 interface LichessProfile {
   id: string;
@@ -8,7 +8,7 @@ interface LichessProfile {
 }
 
 // Export authOptions separately for use in API route
-export const authOptions: NextAuthConfig = {
+export const authOptions: NextAuthOptions = {
   providers: [
     {
       id: "lichess",

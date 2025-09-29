@@ -6,8 +6,7 @@ import {
   Container, 
   Paper, 
   Typography, 
-  Box, 
-  Grid,
+  Box,
   Button,
   Chip
 } from "@mui/material";
@@ -122,9 +121,9 @@ export default function ResultsPage() {
             Click any position to analyze it
           </Typography>
           
-          <Grid container spacing={1}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             {results.attempts.map((attempt) => (
-              <Grid item key={attempt.id}>
+              <Box key={attempt.id}>
                 <Paper
                   elevation={1}
                   sx={{
@@ -155,9 +154,9 @@ export default function ResultsPage() {
                     <CancelIcon color="error" fontSize="small" />
                   )}
                 </Paper>
-              </Grid>
+              </Box>
             ))}
-          </Grid>
+          </Box>
         </Paper>
 
         {/* Action Buttons */}

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { 
@@ -9,11 +9,12 @@ import {
   Typography, 
   Button,
   Box,
-  Alert
+  Alert,
+  CircularProgress
 } from "@mui/material";
 import Header from "@/app/components/Header";
 
-export default function SignInPage() {
+function SignInContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -69,5 +70,22 @@ export default function SignInPage() {
         </Paper>
       </Container>
     </>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <Box sx={{ 
+        height: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        <CircularProgress />
+      </Box>
+    }>
+      <SignInContent />
+    </Suspense>
   );
 }

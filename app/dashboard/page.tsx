@@ -8,7 +8,6 @@ import {
   Paper, 
   Typography, 
   Button, 
-  Grid,
   Box,
   CircularProgress
 } from "@mui/material";
@@ -70,8 +69,8 @@ export default function DashboardPage() {
           Choose Your Game Mode
         </Typography>
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+        <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+          <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 calc(50% - 12px)' } }}>
             <Paper 
               sx={{ 
                 p: 4, 
@@ -96,9 +95,9 @@ export default function DashboardPage() {
                 Start 5-Minute Rush
               </Button>
             </Paper>
-          </Grid>
+          </Box>
 
-          <Grid item xs={12} md={6}>
+          <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 calc(50% - 12px)' } }}>
             <Paper 
               sx={{ 
                 p: 4, 
@@ -123,8 +122,8 @@ export default function DashboardPage() {
                 Start Survival Mode
               </Button>
             </Paper>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
 
         <Box sx={{ mt: 4, textAlign: 'center' }}>
           <Button

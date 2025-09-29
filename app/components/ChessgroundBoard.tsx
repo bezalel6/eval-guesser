@@ -86,7 +86,6 @@ export default function ChessgroundBoard({
   boardSize = { width: "100%", height: "100%" },
 }: ChessgroundBoardProps) {
   const apiRef = useRef<Api | null>(null);
-  const chessRef = useRef<Chess>(new Chess());
   const [boardElement, setBoardElement] = useState<HTMLDivElement | null>(null);
   
   // Callback ref to track when DOM element is ready
@@ -202,50 +201,50 @@ export default function ChessgroundBoard({
     setPromotionMove(null);
   }, [promotionMove, onMove, fen, analysisMode]);
 
-  // Handle move with sound (defined first to avoid hoisting issues)
-  // This function overloads to handle both callback signatures
-  const handleMoveWithSound = useCallback((from: Key, to: Key, promotionOrMetadata?: string | unknown) => {
-    // Handle both signatures by checking if third param is string or metadata
-    const promotion = typeof promotionOrMetadata === 'string' ? promotionOrMetadata : undefined;
-    try {
-      // Load current position
-      chessRef.current.load(fen);
-      
-      // Try to make the move to determine its type
-      const move = chessRef.current.move({
-        from: from as string,
-        to: to as string,
-        promotion: promotion ? promotion as 'q' | 'r' | 'b' | 'n' : 'q' // Default promotion
-      });
-      
-      if (move) {
-        // Play appropriate sound
-        const moveSound = getMoveSound({
-          captured: move.captured !== undefined,
-          castling: move.flags.includes('k') || move.flags.includes('q'),
-          check: chessRef.current.inCheck(),
-          promotion: move.flags.includes('p')
+  // Wrapper for movable.events.after callback (defined before handleMoveWithSound)
+  const handleMoveAfterCallback = useCallback((from: Key, to: Key) => {
+    if (!onMove) return;
+    onMove(from, to);
+  }, [onMove]);
+  
+  // Handle move with sound
+  const handleMoveWithSound = useCallback((from: Key, to: Key, promotion?: string) => {
+    if (!onMove) return;
+    
+    // In analysis mode, we need to check the move validity and play sound
+    if (analysisMode) {
+      try {
+        const chess = new Chess(fen);
+        const move = chess.move({
+          from: from as string,
+          to: to as string,
+          promotion: promotion as 'q' | 'r' | 'b' | 'n' | undefined
         });
-        playSound(moveSound);
         
-        // Undo the move since we only wanted to check its type
-        chessRef.current.undo();
-      } else {
-        // Illegal move
+        if (move) {
+          // Play appropriate sound
+          const moveSound = getMoveSound({
+            captured: move.captured !== undefined,
+            castling: move.flags.includes('k') || move.flags.includes('q'),
+            check: chess.inCheck(),
+            promotion: move.flags.includes('p')
+          });
+          playSound(moveSound);
+          
+          // Call the onMove handler with the result
+          const result = onMove(from, to, promotion);
+          if (result === false) {
+            playSound('illegal');
+          }
+        } else {
+          playSound('illegal');
+        }
+      } catch {
         playSound('illegal');
       }
-    } catch {
-      // Fallback to basic move sound
-      playSound('move');
-    }
-    
-    // Call the original onMove handler
-    if (onMove) {
-      if (analysisMode) {
-        onMove(from, to, promotion);
-      } else {
-        onMove(from, to);
-      }
+    } else {
+      // Non-analysis mode - just call onMove
+      onMove(from, to, promotion);
     }
   }, [fen, onMove, analysisMode]);
 
@@ -300,8 +299,10 @@ export default function ChessgroundBoard({
         color: viewOnly ? undefined : (analysisMode ? 'both' : movable.color || "both"),
         showDests: true,
         dests: analysisMode ? dests : movable.dests,
-        events: {
-          after: analysisMode ? handleAfterMove : handleMoveWithSound,
+        events: analysisMode ? {
+          after: handleAfterMove,
+        } : {
+          after: handleMoveAfterCallback,
         },
       },
       premovable: analysisMode ? { enabled: false } : premovable,
@@ -315,9 +316,7 @@ export default function ChessgroundBoard({
       selectable: {
         enabled: true,
       },
-      events: {
-        move: analysisMode ? handleAfterMove : handleMoveWithSound,
-      },
+      events: analysisMode ? {} : {},
       animation: {
         enabled: true,
         duration: analysisMode ? 200 : 50,
@@ -370,7 +369,7 @@ export default function ChessgroundBoard({
           showDests: true,
           dests: movable.dests,
           events: {
-            after: handleMoveWithSound,
+            after: handleMoveAfterCallback,
           },
         },
         draggable: {
@@ -393,15 +392,11 @@ export default function ChessgroundBoard({
       apiRef.current.set({
         fen,
         turnColor: color as 'white' | 'black',
-        orientation: boardOrientation,
         check: inCheck ? (color as 'white' | 'black') : false,
         movable: {
           color: 'both',
           dests,
           showDests: true,
-          events: {
-            after: handleAfterMove
-          }
         },
         drawable: {
           enabled: false,
@@ -411,7 +406,7 @@ export default function ChessgroundBoard({
         }
       });
     }
-  }, [analysisMode, fen, boardOrientation, color, dests, inCheck, handleAfterMove, arrowShapes]);
+  }, [analysisMode, fen, color, dests, inCheck, arrowShapes]);
 
   // Keyboard navigation for analysis mode
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
