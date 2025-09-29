@@ -23,7 +23,7 @@ import {
     TrendingDown as TrendingDownIcon,
     Remove as RemoveIcon,
 } from '@mui/icons-material';
-import { Chess } from 'chess.js';
+import { Chess, Square } from 'chess.js';
 import { AnalysisState, EngineLine, EngineEvaluation } from '../hooks/useStockfishAnalysis';
 
 interface AnalysisSidebarProps {
@@ -86,7 +86,38 @@ export default function AnalysisSidebar({
             const sanMoves: string[] = [];
 
             for (const move of moves) {
-                const moveObj = chess.move(move);
+                let moveObj;
+
+                // Check if move is in UCI format (e.g., "e2e4", "e7e8q")
+                if (move.length >= 4 && move.match(/^[a-h][1-8][a-h][1-8][qrbn]?$/)) {
+                    // Convert UCI to move object
+                    const from = move.substring(0, 2);
+                    const to = move.substring(2, 4);
+                    const promotion = move.length > 4 ? move[4] : undefined;
+
+                    try {
+                        moveObj = chess.move({
+                            from: from as Square,
+                            to: to as Square,
+                            promotion: promotion as 'q' | 'r' | 'b' | 'n' | undefined
+                        });
+                    } catch (e) {
+                        // If UCI format fails, try as SAN
+                        try {
+                            moveObj = chess.move(move);
+                        } catch (e2) {
+                            // Move is invalid
+                        }
+                    }
+                } else {
+                    // Assume SAN format
+                    try {
+                        moveObj = chess.move(move);
+                    } catch (e) {
+                        // Move is invalid
+                    }
+                }
+
                 if (moveObj) {
                     sanMoves.push(moveObj.san);
                 } else {
