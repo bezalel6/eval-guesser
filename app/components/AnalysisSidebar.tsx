@@ -18,10 +18,6 @@ import {
 import {
     Pause as PauseIcon,
     Clear as ClearIcon,
-    Settings as SettingsIcon,
-    TrendingUp as TrendingUpIcon,
-    TrendingDown as TrendingDownIcon,
-    Remove as RemoveIcon,
 } from '@mui/icons-material';
 import { Chess, Square } from 'chess.js';
 import { AnalysisState, EngineLine, EngineEvaluation } from '../hooks/useStockfishAnalysis';
@@ -48,35 +44,29 @@ export default function AnalysisSidebar({
     cacheStats
 }: AnalysisSidebarProps) {
     const [hoveredLine, setHoveredLine] = useState<number | null>(null);
-    const [showSettings, setShowSettings] = useState(false);
 
-    // Format evaluation with color and icon
-    const formatEvaluationWithColor = (evaluation: EngineEvaluation) => {
+    // Format evaluation with color
+    const formatEvaluation = (evaluation: EngineEvaluation) => {
         let color: string;
-        let icon: React.ReactNode;
         let text: string;
 
         if (evaluation.type === 'mate') {
             text = `M${Math.abs(evaluation.value)}`;
             color = evaluation.value > 0 ? '#4caf50' : '#f44336';
-            icon = evaluation.value > 0 ? <TrendingUpIcon fontSize="small" /> : <TrendingDownIcon fontSize="small" />;
         } else {
             const pawns = (evaluation.value / 100).toFixed(2);
             text = evaluation.value >= 0 ? `+${pawns}` : pawns;
 
             if (evaluation.value > 100) {
                 color = '#4caf50';
-                icon = <TrendingUpIcon fontSize="small" />;
             } else if (evaluation.value < -100) {
                 color = '#f44336';
-                icon = <TrendingDownIcon fontSize="small" />;
             } else {
                 color = '#ffc107';
-                icon = <RemoveIcon fontSize="small" />;
             }
         }
 
-        return { text, color, icon };
+        return { text, color };
     };
 
     // Convert moves to SAN notation for display
@@ -133,133 +123,67 @@ export default function AnalysisSidebar({
         }
     };
 
-    // Get move number for display
-    const getMoveNumber = (index: number, isWhite: boolean): string => {
-        const moveNum = Math.floor(index / 2) + 1;
-        return isWhite ? `${moveNum}.` : `${moveNum}...`;
-    };
 
-    // Render a line of moves
-    const renderMoveSequence = (moves: string[], lineIndex: number) => {
-        const sanMoves = convertMovesToSan(moves, currentFen);
-
-        return (
-            <Box sx={{ mt: 1 }}>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {sanMoves.slice(0, 8).map((move, index) => {
-                        const isWhite = index % 2 === 0;
-                        const moveNumber = getMoveNumber(index, isWhite);
-
-                        return (
-                            <Box key={index} sx={{ display: 'flex', alignItems: 'center' }}>
-                                {isWhite && (
-                                    <Typography
-                                        variant="caption"
-                                        sx={{
-                                            color: 'text.secondary',
-                                            mr: 0.5,
-                                            fontSize: '0.75rem'
-                                        }}
-                                    >
-                                        {moveNumber}
-                                    </Typography>
-                                )}
-                                <Chip
-                                    label={move}
-                                    size="small"
-                                    variant={hoveredLine === lineIndex ? "filled" : "outlined"}
-                                    clickable
-                                    onClick={() => onMoveClick?.(moves[0])} // Play the first move
-                                    sx={{
-                                        fontSize: '0.75rem',
-                                        height: 24,
-                                        '& .MuiChip-label': {
-                                            px: 1
-                                        },
-                                        backgroundColor: hoveredLine === lineIndex ? 'primary.main' : 'transparent',
-                                        color: hoveredLine === lineIndex ? 'primary.contrastText' : 'text.primary',
-                                    }}
-                                />
-                            </Box>
-                        );
-                    })}
-                    {sanMoves.length > 8 && (
-                        <Typography variant="caption" sx={{ color: 'text.secondary', ml: 1 }}>
-                            ...
-                        </Typography>
-                    )}
-                </Box>
-            </Box>
-        );
+    // Get the first move from a line
+    const getFirstMove = (moves: string[]): string => {
+        if (!moves || moves.length === 0) return '';
+        const sanMoves = convertMovesToSan(moves.slice(0, 1), currentFen);
+        return sanMoves[0] || moves[0];
     };
 
     const currentEvalFormatted = analysis.currentEvaluation
-        ? formatEvaluationWithColor(analysis.currentEvaluation)
+        ? formatEvaluation(analysis.currentEvaluation)
         : null;
 
     return (
-        <Box sx={{ width: 350, height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ width: 280, height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Header with current evaluation */}
             <Paper sx={{ p: 2, mb: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="h6">Engine Analysis</Typography>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Tooltip title="Settings">
-                            <IconButton
-                                size="small"
-                                onClick={() => setShowSettings(!showSettings)}
-                                color={showSettings ? 'primary' : 'default'}
-                            >
-                                <SettingsIcon />
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Analysis</Typography>
+                    {isAnalyzing ? (
+                        <Tooltip title="Stop">
+                            <IconButton size="small" onClick={onStop}>
+                                <PauseIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
-                        {isAnalyzing ? (
-                            <Tooltip title="Stop analysis">
-                                <IconButton size="small" onClick={onStop} color="error">
-                                    <PauseIcon />
-                                </IconButton>
-                            </Tooltip>
-                        ) : (
-                            <Tooltip title="Clear cache">
-                                <IconButton size="small" onClick={onClearCache}>
-                                    <ClearIcon />
-                                </IconButton>
-                            </Tooltip>
-                        )}
-                    </Box>
+                    ) : (
+                        <Tooltip title="Clear">
+                            <IconButton size="small" onClick={onClearCache}>
+                                <ClearIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
                 </Box>
 
-                {/* Current Evaluation Display */}
+                {/* Current Evaluation Display - Compact */}
                 {currentEvalFormatted ? (
-                    <Card variant="outlined" sx={{ mb: 1 }}>
-                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Box sx={{ color: currentEvalFormatted.color }}>
-                                    {currentEvalFormatted.icon}
-                                </Box>
-                                <Typography
-                                    variant="h5"
-                                    sx={{
-                                        fontWeight: 'bold',
-                                        color: currentEvalFormatted.color
-                                    }}
-                                >
-                                    {currentEvalFormatted.text}
-                                </Typography>
-                                <Box sx={{ flex: 1 }} />
-                                <Chip
-                                    label={`Depth ${analysis.depth}`}
-                                    size="small"
-                                    variant="outlined"
-                                />
-                            </Box>
-                            {analysis.nodes > 0 && (
-                                <Typography variant="caption" color="text.secondary">
-                                    {(analysis.nodes / 1000000).toFixed(1)}M nodes • {(analysis.nps / 1000).toFixed(0)}k nps
-                                </Typography>
-                            )}
-                        </CardContent>
-                    </Card>
+                    <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                        py: 1,
+                        borderBottom: '1px solid',
+                        borderColor: 'divider'
+                    }}>
+                        <Typography
+                            variant="h5"
+                            sx={{
+                                fontWeight: 'bold',
+                                color: currentEvalFormatted.color
+                            }}
+                        >
+                            {currentEvalFormatted.text}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            d{analysis.depth}
+                        </Typography>
+                        {analysis.nodes > 0 && (
+                            <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                                {(analysis.nodes / 1000000).toFixed(1)}M
+                            </Typography>
+                        )}
+                    </Box>
                 ) : (
                     <Box sx={{ textAlign: 'center', py: 2 }}>
                         {analysis.error ? (
@@ -290,19 +214,14 @@ export default function AnalysisSidebar({
                 )}
             </Paper>
 
-            {/* Engine Lines */}
+            {/* Engine Lines - Compact */}
             <Paper sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ p: 2, pb: 1 }}>
-                    <Typography variant="subtitle1" gutterBottom>
-                        Engine Lines
-                    </Typography>
-                </Box>
-
-                <Box sx={{ flex: 1, overflow: 'auto' }}>
+                <Box sx={{ flex: 1, overflow: 'auto', p: 1 }}>
                     {analysis.lines.length > 0 ? (
-                        <List dense>
+                        <List dense sx={{ py: 0 }}>
                             {analysis.lines.map((line, index) => {
-                                const evalFormatted = formatEvaluationWithColor(line.score);
+                                const evalFormatted = formatEvaluation(line.score);
+                                const firstMove = getFirstMove(line.pv);
 
                                 return (
                                     <ListItem
@@ -318,49 +237,48 @@ export default function AnalysisSidebar({
                                         }}
                                     >
                                         <ListItemButton
+                                            onClick={() => onMoveClick?.(line.pv[0])}
                                             sx={{
-                                                flexDirection: 'column',
-                                                alignItems: 'flex-start',
-                                                py: 1,
+                                                py: 0.75,
+                                                px: 1,
                                                 backgroundColor: hoveredLine === index ? 'action.hover' : 'transparent',
                                                 '&:hover': {
                                                     backgroundColor: 'action.hover'
-                                                }
+                                                },
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 2
                                             }}
                                         >
-                                            {/* Line header with evaluation */}
-                                            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', mb: 0.5 }}>
-                                                <Chip
-                                                    label={line.multipv}
-                                                    size="small"
-                                                    sx={{
-                                                        minWidth: 24,
-                                                        height: 20,
-                                                        fontSize: '0.7rem',
-                                                        mr: 1
-                                                    }}
-                                                />
-                                                <Box sx={{ display: 'flex', alignItems: 'center', color: evalFormatted.color }}>
-                                                    {evalFormatted.icon}
-                                                    <Typography
-                                                        variant="body2"
-                                                        sx={{
-                                                            fontWeight: 'bold',
-                                                            ml: 0.5,
-                                                            color: evalFormatted.color
-                                                        }}
-                                                    >
-                                                        {evalFormatted.text}
-                                                    </Typography>
-                                                </Box>
-                                                <Box sx={{ flex: 1 }} />
-                                                <Typography variant="caption" color="text.secondary">
-                                                    d{line.depth}
-                                                </Typography>
-                                            </Box>
+                                            {/* Evaluation */}
+                                            <Typography
+                                                variant="body2"
+                                                sx={{
+                                                    fontWeight: 'bold',
+                                                    color: evalFormatted.color,
+                                                    minWidth: '60px'
+                                                }}
+                                            >
+                                                {evalFormatted.text}
+                                            </Typography>
 
-                                            {/* Move sequence */}
-                                            {renderMoveSequence(line.pv, index)}
+                                            {/* First move only */}
+                                            <Chip
+                                                label={firstMove}
+                                                size="small"
+                                                variant={hoveredLine === index ? "filled" : "outlined"}
+                                                sx={{
+                                                    height: 22,
+                                                    fontSize: '0.8rem',
+                                                    backgroundColor: hoveredLine === index ? 'primary.main' : 'transparent',
+                                                    color: hoveredLine === index ? 'primary.contrastText' : 'text.primary',
+                                                }}
+                                            />
+
+                                            {/* Depth indicator */}
+                                            <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                                                d{line.depth}
+                                            </Typography>
                                         </ListItemButton>
                                     </ListItem>
                                 );
@@ -376,24 +294,6 @@ export default function AnalysisSidebar({
                 </Box>
             </Paper>
 
-            {/* Settings Panel */}
-            {showSettings && (
-                <Paper sx={{ mt: 2, p: 2 }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                        Engine Statistics
-                    </Typography>
-                    {cacheStats && (
-                        <>
-                            <Typography variant="body2" color="text.secondary">
-                                Cached positions: {cacheStats.size}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Best move: {analysis.bestMove || 'None'}
-                            </Typography>
-                        </>
-                    )}
-                </Paper>
-            )}
         </Box>
     );
 }

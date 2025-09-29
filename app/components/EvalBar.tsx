@@ -252,16 +252,17 @@ export default function EvalBar({
           }} />
         )}
         
-        {/* Center line indicator */}
+        {/* Center line indicator - more visible */}
         <Box sx={{
           position: 'absolute',
           top: '50%',
           left: 0,
           right: 0,
-          height: '1px',
-          backgroundColor: '#666',
+          height: '2px',
+          backgroundColor: '#888',
           transform: 'translateY(-50%)',
-          opacity: 0.7
+          zIndex: 1,
+          boxShadow: '0 0 4px rgba(255,255,255,0.3)'
         }} />
         
         {/* Removed "Drag to guess" hint - users can see the eval immediately */}
