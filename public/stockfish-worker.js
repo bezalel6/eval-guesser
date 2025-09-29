@@ -59,9 +59,20 @@ function handleEngineOutput(line) {
     }
 }
 
-// UCI Protocol Note: All scores are ALWAYS from White's perspective
-// Positive scores = good for White, negative = good for Black
-// No normalization needed based on side to move
+// UCI Protocol Important Note:
+// According to UCI specification, scores are from the SIDE-TO-MOVE perspective:
+// - When White to move: positive = good for White, negative = good for Black
+// - When Black to move: positive = good for Black, negative = good for White
+// We normalize to always show from White's perspective for consistency
+
+// Helper function to determine if it's Black's turn from FEN
+function isBlackTurn(fen) {
+    if (!fen) return false;
+    // FEN format: pieces activeColor castling enPassant halfmove fullmove
+    // The active color is the second part, after the first space
+    const parts = fen.split(' ');
+    return parts[1] === 'b';
+}
 
 // Parse UCI info line
 function parseInfoLine(line) {
@@ -97,12 +108,19 @@ function parseInfoLine(line) {
             case 'score':
                 i++;
                 if (parts[i] === 'cp') {
-                    const value = parseInt(parts[++i]);
-                    // UCI scores are already from White's perspective
+                    let value = parseInt(parts[++i]);
+                    // UCI gives scores from side-to-move perspective
+                    // Normalize to White's perspective when Black is to move
+                    if (currentPositionBlackToMove) {
+                        value = -value;
+                    }
                     info.score = { type: 'cp', value: value };
                 } else if (parts[i] === 'mate') {
-                    const value = parseInt(parts[++i]);
-                    // UCI mate scores are already from White's perspective
+                    let value = parseInt(parts[++i]);
+                    // Same for mate scores - normalize to White's perspective
+                    if (currentPositionBlackToMove) {
+                        value = -value;
+                    }
                     info.score = { type: 'mate', value: value };
                 }
                 break;
@@ -171,6 +189,9 @@ function initializeEngine() {
     }, 100);
 }
 
+// Track whether Black is to move for score normalization
+let currentPositionBlackToMove = false;
+
 // Analyze position
 function analyzePosition(data) {
     if (!isReady) {
@@ -182,6 +203,18 @@ function analyzePosition(data) {
     }
 
     currentAnalysisId = data.analysisId || ++currentAnalysisId;
+
+    // Determine who is to move from the FEN
+    const fen = data.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    currentPositionBlackToMove = isBlackTurn(fen);
+
+    // If moves are provided, toggle turn for each move
+    if (data.moves && data.moves.length > 0) {
+        // Each move toggles the turn
+        if (data.moves.length % 2 === 1) {
+            currentPositionBlackToMove = !currentPositionBlackToMove;
+        }
+    }
 
     // Stop any ongoing analysis
     sendEngineCommand('stop');
