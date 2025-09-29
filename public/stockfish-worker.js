@@ -59,14 +59,9 @@ function handleEngineOutput(line) {
     }
 }
 
-// Helper function to determine if it's Black's turn from FEN
-function isBlackTurn(fen) {
-    if (!fen) return false;
-    // FEN format: pieces activeColor castling enPassant halfmove fullmove
-    // The active color is the second part, after the first space
-    const parts = fen.split(' ');
-    return parts[1] === 'b';
-}
+// UCI Protocol Note: All scores are ALWAYS from White's perspective
+// Positive scores = good for White, negative = good for Black
+// No normalization needed based on side to move
 
 // Parse UCI info line
 function parseInfoLine(line) {
@@ -102,19 +97,12 @@ function parseInfoLine(line) {
             case 'score':
                 i++;
                 if (parts[i] === 'cp') {
-                    let value = parseInt(parts[++i]);
-                    // Stockfish gives scores from the perspective of the side to move
-                    // We need to normalize to always show from White's perspective
-                    if (currentPositionFen && isBlackTurn(currentPositionFen)) {
-                        value = -value;
-                    }
+                    const value = parseInt(parts[++i]);
+                    // UCI scores are already from White's perspective
                     info.score = { type: 'cp', value: value };
                 } else if (parts[i] === 'mate') {
-                    let value = parseInt(parts[++i]);
-                    // Same for mate scores - normalize to White's perspective
-                    if (currentPositionFen && isBlackTurn(currentPositionFen)) {
-                        value = -value;
-                    }
+                    const value = parseInt(parts[++i]);
+                    // UCI mate scores are already from White's perspective
                     info.score = { type: 'mate', value: value };
                 }
                 break;
@@ -183,9 +171,6 @@ function initializeEngine() {
     }, 100);
 }
 
-// Track current position to determine side to move
-let currentPositionFen = null;
-
 // Analyze position
 function analyzePosition(data) {
     if (!isReady) {
@@ -197,23 +182,6 @@ function analyzePosition(data) {
     }
 
     currentAnalysisId = data.analysisId || ++currentAnalysisId;
-
-    // Store the FEN to determine side to move
-    currentPositionFen = data.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-
-    // If moves are provided, we need to track whose turn it is after those moves
-    // Since we don't have a chess engine here, we count moves: even = white, odd = black
-    if (data.moves && data.moves.length > 0) {
-        const baseIsWhite = !isBlackTurn(currentPositionFen);
-        const finalIsWhite = (data.moves.length % 2 === 0) ? baseIsWhite : !baseIsWhite;
-        // Update the stored FEN's turn indicator for evaluation normalization
-        // This is a simplified tracking - just for knowing whose turn it is
-        if (currentPositionFen) {
-            const fenParts = currentPositionFen.split(' ');
-            fenParts[1] = finalIsWhite ? 'w' : 'b';
-            currentPositionFen = fenParts.join(' ');
-        }
-    }
 
     // Stop any ongoing analysis
     sendEngineCommand('stop');
